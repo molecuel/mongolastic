@@ -127,6 +127,11 @@ mongolastic.prototype.delete = function(modelname, id, callback) {
   }, callback);
 };
 
+/**
+ * Search function
+ * @param query
+ * @param callback
+ */
 mongolastic.prototype.search = function(query, callback) {
   var elastic = getInstance();
   if(!query.index) {
@@ -135,6 +140,11 @@ mongolastic.prototype.search = function(query, callback) {
   elastic.connection.search(query, callback);
 };
 
+/**
+ * Delete whole index
+ * @param modelname
+ * @param callback
+ */
 mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
   this.connection.indices.delete({index: this.prefix + '-' +modelname}, callback);
 };
