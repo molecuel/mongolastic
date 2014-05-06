@@ -1,15 +1,12 @@
 {
   "name": "mongolastic",
-  "description": "mongoose middleware for elasticsearch indexing",
+  "description": "This is a mongoose plugin for elasticsearch",
   "keywords": [
     "mongoose",
     "mongodb",
     "elasticsearch"
   ],
-  "author": {
-    "name": "Dominic Böttger",
-    "email": "dominic.boettger@inspirationlabs.com"
-  },
+  "author": "Dominic Böttger <dominic.boettger@inspirationlabs.com>",
   "repository": {
     "url": "https://github.com/DominicBoettger/mongolastic"
   },
@@ -28,7 +25,15 @@
     "node": ">= 0.10.0"
   },
   "scripts": {
-    "test": "node_modules/.bin/mocha -R List"
+    "test": "mocha -R List"
   },
-  "description": "This is a mongoose plugin for elasticsearch"
+  "bugs": {
+    "url": "https://github.com/DominicBoettger/mongolastic/issues"
+  },
+  "homepage": "https://github.com/DominicBoettger/mongolastic",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "license": "MIT"
 }
