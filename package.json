@@ -1,6 +1,19 @@
 {
   "name": "mongolastic",
-  "version": "0.0.1",
+  "description": "mongoose middleware for elasticsearch indexing",
+  "keywords": [
+    "mongoose",
+    "mongodb",
+    "elasticsearch"
+  ],
+  "author": {
+    "name": "Dominic Böttger",
+    "email": "dominic.boettger@inspirationlabs.com"
+  },
+  "repository": {
+    "url": "https://github.com/DominicBoettger/mongolastic"
+  },
+  "version": "0.5.0",
   "dependencies": {
     "elasticsearch": ">=0.0.1"
   },
@@ -10,6 +23,9 @@
     "assert": ">=0.0.1",
     "mongoose": ">=0.0.1",
     "mocha-jshint": ">=0.0.1"
+  },
+  "engines": {
+    "node": ">= 0.10.0"
   },
   "scripts": {
     "test": "node_modules/.bin/mocha -R List"

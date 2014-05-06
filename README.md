@@ -1,3 +1,11 @@
+[![Build Status](https://travis-ci.org/DominicBoettger/mongolastic.svg?branch=master)](https://travis-ci.org/DominicBoettger/mongolastic)
+
+[![NPM](https://nodei.co/npm-dl/mongolastic.png?months=1)](https://nodei.co/npm/mongolastic/)
+
+[![NPM](https://nodei.co/npm/mongolastic.png?downloads=true&stars=true)](https://nodei.co/npm/mongolastic/)
+
+[![NPM version](https://badge.fury.io/js/mongolastic@2x.png)](http://badge.fury.io/js/mongolastic)
+
 mongolastic
 ===========
 
