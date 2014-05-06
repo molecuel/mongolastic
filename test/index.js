@@ -95,6 +95,14 @@ describe('mongolastic', function(){
       }, 1000);
     });
 
+    it('should sync mongodb', function(done) {
+      cat.sync(function(errcount, resultcount) {
+        errcount.should.eql(0);
+        resultcount.should.eql(1);
+        done();
+      });
+    });
+
     it('should delete the mongoose object', function(done) {
       kitty.remove(function(err) {
         should.not.exist(err);
