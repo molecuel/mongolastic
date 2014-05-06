@@ -30,7 +30,7 @@ var cat = mongoose.model('cat', CatSchema);
 
 ##  Todo
 
-- Sync function
+- ~~Sync function~~ (DONE)
 
 ## License (MIT)
 
