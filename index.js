@@ -108,14 +108,12 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
 mongolastic.prototype.index = function(modelname, entry, callback) {
   var elastic = getInstance();
 
-  if(typeof entry._id == 'Object') {
-    entry._id = entry._id.toString();
-  }
+  var myid = entry._id.toString();
 
   elastic.connection.index({
     index: elastic.prefix + '-' + modelname,
     type: modelname,
-    id: entry._id,
+    id: myid,
     body: entry
   }, callback);
 };
