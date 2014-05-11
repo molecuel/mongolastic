@@ -141,7 +141,7 @@ mongolastic.prototype.delete = function(modelname, id, callback) {
 mongolastic.prototype.search = function(query, callback) {
   var elastic = getInstance();
   if(!query.index) {
-    query.index = this.prefix + '-*';
+    query.index = elastic.prefix + '-*';
   }
   elastic.connection.search(query, callback);
 };
