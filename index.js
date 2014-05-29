@@ -111,7 +111,7 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
   var myid = entry._id.toString();
 
   elastic.connection.index({
-    index: elastic.prefix + '-' + modelname,
+    index: elastic.indexNameFromModel(modelname),
     type: modelname,
     id: myid,
     body: entry
@@ -127,7 +127,7 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
 mongolastic.prototype.delete = function(modelname, id, callback) {
   var elastic = getInstance();
   elastic.connection.delete({
-    index: elastic.prefix + '-' + modelname,
+    index: elastic.indexNameFromModel(modelname),
     type: modelname,
     id: id
   }, callback);
@@ -181,7 +181,16 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
  * @param callback
  */
 mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
-  this.connection.indices.delete({index: this.prefix + '-' +modelname}, callback);
+  this.connection.indices.delete({index: this.indexNameFromModel(modelname)}, callback);
 };
+
+/**
+ * Helper for hamornising namespaces
+ * @param modelname
+ * @returns {string}
+ */
+mongolastic.prototype.indexNameFromModel = function(modelname) {
+  return this.prefix + '-' + modelname.toLowerCase();
+}
 
 module.exports = getInstance();
