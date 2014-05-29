@@ -111,7 +111,7 @@ mongolastic.prototype.getMapping = function(modelname, callback) {
     index: elastic.indexNameFromModel(modelname),
     type: modelname
   }, callback);
-}
+};
 
 mongolastic.prototype.putMapping = function(modelname, mapping, callback) {
   var elastic = getInstance();
@@ -123,7 +123,7 @@ mongolastic.prototype.putMapping = function(modelname, mapping, callback) {
     type: modelname,
     body: mapping
   }, callback);
-}
+};
 
 /**
  * Index data
