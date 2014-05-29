@@ -2,6 +2,7 @@
  * Created by dob on 05.05.14.
  */
 var elasticsearch = require('elasticsearch');
+var indices = require('./lib/indices');
 var instance;
 
 /**
@@ -38,6 +39,10 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
   // check if the connection has been defined
   if(!this.connection) {
     this.connection = new elasticsearch.Client(options);
+  }
+
+  if(!this.indices) {
+    this.indices = new indices(this);
   }
 
   // check the connection with a ping to the cluster and reply the connection
@@ -98,6 +103,27 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     console.log('missing modelname');
   }
 };
+
+mongolastic.prototype.getMapping = function(modelname, callback) {
+  var elastic = getInstance();
+
+  elastic.connection.indices.getMapping({
+    index: elastic.indexNameFromModel(modelname),
+    type: modelname
+  }, callback);
+}
+
+mongolastic.prototype.putMapping = function(modelname, mapping, callback) {
+  var elastic = getInstance();
+
+  console.log(mapping);
+
+  elastic.connection.indices.putMapping({
+    index: elastic.indexNameFromModel(modelname),
+    type: modelname,
+    body: mapping
+  }, callback);
+}
 
 /**
  * Index data
