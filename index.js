@@ -2,6 +2,7 @@
  * Created by dob on 05.05.14.
  */
 var elasticsearch = require('elasticsearch');
+var indices = require('./lib/indices');
 var instance;
 
 /**
@@ -38,6 +39,10 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
   // check if the connection has been defined
   if(!this.connection) {
     this.connection = new elasticsearch.Client(options);
+  }
+
+  if(!this.indices) {
+    this.indices = new indices(this);
   }
 
   // check the connection with a ping to the cluster and reply the connection
@@ -99,6 +104,27 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
   }
 };
 
+mongolastic.prototype.getMapping = function(modelname, callback) {
+  var elastic = getInstance();
+
+  elastic.connection.indices.getMapping({
+    index: elastic.indexNameFromModel(modelname),
+    type: modelname
+  }, callback);
+};
+
+mongolastic.prototype.putMapping = function(modelname, mapping, callback) {
+  var elastic = getInstance();
+
+  console.log(mapping);
+
+  elastic.connection.indices.putMapping({
+    index: elastic.indexNameFromModel(modelname),
+    type: modelname,
+    body: mapping
+  }, callback);
+};
+
 /**
  * Index data
  * @param modelname
@@ -111,7 +137,7 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
   var myid = entry._id.toString();
 
   elastic.connection.index({
-    index: elastic.prefix + '-' + modelname,
+    index: elastic.indexNameFromModel(modelname),
     type: modelname,
     id: myid,
     body: entry
@@ -127,7 +153,7 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
 mongolastic.prototype.delete = function(modelname, id, callback) {
   var elastic = getInstance();
   elastic.connection.delete({
-    index: elastic.prefix + '-' + modelname,
+    index: elastic.indexNameFromModel(modelname),
     type: modelname,
     id: id
   }, callback);
@@ -181,7 +207,16 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
  * @param callback
  */
 mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
-  this.connection.indices.delete({index: this.prefix + '-' +modelname}, callback);
+  this.connection.indices.delete({index: this.indexNameFromModel(modelname)}, callback);
 };
+
+/**
+ * Helper for hamornising namespaces
+ * @param modelname
+ * @returns {string}
+ */
+mongolastic.prototype.indexNameFromModel = function(modelname) {
+  return this.prefix + '-' + modelname.toLowerCase();
+}
 
 module.exports = getInstance();
