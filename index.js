@@ -116,8 +116,6 @@ mongolastic.prototype.getMapping = function(modelname, callback) {
 mongolastic.prototype.putMapping = function(modelname, mapping, callback) {
   var elastic = getInstance();
 
-  console.log(mapping);
-
   elastic.connection.indices.putMapping({
     index: elastic.indexNameFromModel(modelname),
     type: modelname,
@@ -217,6 +215,6 @@ mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
  */
 mongolastic.prototype.indexNameFromModel = function(modelname) {
   return this.prefix + '-' + modelname.toLowerCase();
-}
+};
 
 module.exports = getInstance();
