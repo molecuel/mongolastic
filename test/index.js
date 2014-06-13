@@ -68,7 +68,7 @@ describe('mongolastic', function(){
     });
 
     it('should return the mappings for the models', function(done) {
-      mongolastic.getMapping(cat.modelName, function(err, response, status) {
+      mongolastic.indices.getMapping(cat.modelName, function(err, response, status) {
         should.not.exist(err);
         assert(status === 200);
         response['mongolastic-cat'].should.be.object;

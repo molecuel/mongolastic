@@ -8,9 +8,9 @@
   ],
   "author": "Dominic Böttger <dominic.boettger@inspirationlabs.com>",
   "repository": {
-    "url": "https://github.com/DominicBoettger/mongolastic"
+    "url": "https://github.com/molecuel/mongolastic"
   },
-  "version": "0.7.0",
+  "version": "0.8.0",
   "dependencies": {
     "elasticsearch": ">=0.0.1",
     "async": ">=0.0.1"
@@ -29,9 +29,9 @@
     "test": "./node_modules/.bin/mocha -R spec"
   },
   "bugs": {
-    "url": "https://github.com/DominicBoettger/mongolastic/issues"
+    "url": "https://github.com/molecuel/mongolastic/issues"
   },
-  "homepage": "https://github.com/DominicBoettger/mongolastic",
+  "homepage": "https://github.com/molecuel/mongolastic",
   "main": "index.js",
   "directories": {
     "test": "test"
