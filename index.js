@@ -139,15 +139,22 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
  */
 mongolastic.prototype.renderMapping = function(model, callback) {
   var deepen = function deepen(o) {
-    var oo = {}, t, parts, part;
+    var oo = {}, t, orig_parts, parts, part;
     for (var k in o) {
       if (o.hasOwnProperty(k)) {
         t = oo;
-        parts = k.split('.');
-        var key = parts.pop();
+        orig_parts = k.split('.');
+        var key = orig_parts.pop();
+        parts = [];
+        // if it's nested the schema needs the properties object added for every second element
+        for (var i = 0; i < orig_parts.length; i ++) {
+          parts.push(orig_parts[i]);
+          parts.push('properties');
+        }
         while (parts.length) {
           part = parts.shift();
-          t = t[part] = t[part] || {type: 'object'};
+          var mypart = t[part] = t[part] || {};
+          t = mypart;
         }
         t[key] = o[k];
       }

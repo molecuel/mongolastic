@@ -25,7 +25,10 @@ describe('mongolastic', function(){
       costume: {type: mongoose.Schema.ObjectId, ref: 'costume', elastic: {popfields: 'name'}},
       url: {type: String, elastic: {mapping: {type: 'string', index: 'not_analyzed'}}},
       test: {
-        integer: {type: Number, elastic: {mapping: {type: 'integer'}}}
+        integer: {type: Number, elastic: {mapping: {type: 'integer'}}},
+        deep: {
+          mystring: {type: String, elastic: {mapping: {type: 'string'}}}
+        }
       }
     });
     CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
@@ -59,7 +62,7 @@ describe('mongolastic', function(){
       });
     });
 
-    it('should create the mappings for the models', function(done) {
+    it('should create the mapping for the cat model', function(done) {
       mongolastic.registerModel(cat, function(err, result) {
         should.not.exist(err);
         result.should.be.a.function;
@@ -67,7 +70,7 @@ describe('mongolastic', function(){
       });
     });
 
-    it('should return the mappings for the models', function(done) {
+    it('should return the mappings for the cat model', function(done) {
       mongolastic.indices.getMapping(cat.modelName, function(err, response, status) {
         should.not.exist(err);
         assert(status === 200);
@@ -193,11 +196,28 @@ describe('mongolastic', function(){
         done();
       });
     });
+
+    it('should return the mappings for the cat model', function(done) {
+      mongolastic.indices.getMapping(cat.modelName, function(err, response, status) {
+        should.not.exist(err);
+        assert(status === 200);
+        response['mongolastic-cat'].should.be.object;
+        response['mongolastic-cat'].mappings.should.be.object;
+        response['mongolastic-cat'].mappings.cat.should.be.object;
+        response['mongolastic-cat'].mappings.cat.properties.should.be.object;
+        response['mongolastic-cat'].mappings.cat.properties.test.should.be.object;
+        response['mongolastic-cat'].mappings.cat.properties.test.properties.should.be.object;
+        response['mongolastic-cat'].mappings.cat.properties.test.properties.deep.should.be.object;
+        response['mongolastic-cat'].mappings.cat.properties.test.properties.deep.properties.should.be.object;
+        //console.log(JSON.stringify(response));
+        done();
+      });
+    });
   });
 
   after(function(done) {
     mongoose.connection.db.dropDatabase(function() {
-      mongolastic.deleteIndex('ff', function() {
+      mongolastic.deleteIndex('cat', function() {
         mongolastic.deleteIndex('dog', function() {
           done();
         });
