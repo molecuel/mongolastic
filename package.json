@@ -12,7 +12,8 @@
   },
   "version": "0.7.0",
   "dependencies": {
-    "elasticsearch": ">=0.0.1"
+    "elasticsearch": ">=0.0.1",
+    "async": ">=0.0.1"
   },
   "devDependencies": {
     "mocha": "*",

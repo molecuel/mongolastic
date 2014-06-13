@@ -4,6 +4,7 @@
 var elasticsearch = require('elasticsearch');
 var indices = require('./lib/indices');
 var instance;
+var async = require('async');
 
 /**
  * Module definition
@@ -38,6 +39,12 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
 
   // check if the connection has been defined
   if(!this.connection) {
+    /*if(!options) {
+      options = {};
+    }
+    options.log = {
+      level: 'trace'
+    }*/
     this.connection = new elasticsearch.Client(options);
   }
 
@@ -63,9 +70,30 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     var elastic = getInstance();
 
     schema.pre('save', function(next, done) {
-      elastic.index(options.modelname, this, function(err) {
+      var self = this;
+      async.each(Object.keys(schema.paths), function(currentpath, callback) {
+        if(schema.paths[currentpath] && schema.paths[currentpath].options && schema.paths[currentpath].options.ref) {
+          if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.avoidpop ) {
+            callback();
+          } else {
+            if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.popfields) {
+              self.populate(currentpath, schema.paths[currentpath].options.elastic.popfields, callback);
+            } else {
+              self.populate(currentpath, callback);
+            }
+          }
+        } else {
+          callback();
+        }
+      }, function(err) {
         if(!err) {
-          next();
+          elastic.index(options.modelname, self, function(err) {
+            if(!err) {
+              next();
+            } else {
+              done(new Error('Could not save in Elasticsearch'));
+            }
+          });
         } else {
           done(new Error('Could not save in Elasticsearch'));
         }
@@ -104,6 +132,142 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
   }
 };
 
+/**
+ * Render the mapping for the model
+ * @param model
+ * @param callback
+ */
+mongolastic.prototype.renderMapping = function(model, callback) {
+  var deepen = function deepen(o) {
+    var oo = {}, t, parts, part;
+    for (var k in o) {
+      if (o.hasOwnProperty(k)) {
+        t = oo;
+        parts = k.split('.');
+        var key = parts.pop();
+        while (parts.length) {
+          part = parts.shift();
+          t = t[part] = t[part] || {type: 'object'};
+        }
+        t[key] = o[k];
+      }
+    }
+    return oo;
+  };
+
+  var mapping = {};
+  mapping[model.modelName] = {
+    properties: {
+
+    }
+  };
+
+  async.each(Object.keys(model.schema.paths), function(currentkey, cb) {
+    var currentPath = model.schema.paths[currentkey];
+    if(currentPath && currentPath.options && currentPath.options.elastic && currentPath.options.elastic.mapping) {
+      mapping[model.modelName].properties[currentkey] = currentPath.options.elastic.mapping;
+      cb();
+    } else {
+      cb();
+    }
+  }, function(err) {
+    var map = deepen(mapping[model.modelName].properties);
+    mapping[model.modelName].properties = map;
+    callback(err, mapping);
+  });
+};
+
+/**
+ * When registering a new mongoose model
+ * @param model
+ * @param callback
+ */
+mongolastic.prototype.registerModel = function(model, callback) {
+  var elastic = getInstance();
+  elastic.indexCheckCreate(model,
+    function(err) {
+      callback(err, model);
+    });
+};
+
+/**
+ * Create the mapping if it does not exist
+ * @param model
+ * @param callback - Return if new mapping has been put on server
+ */
+mongolastic.prototype.checkCreateMapping = function(model, callback) {
+  var elastic = getInstance();
+  elastic.getMapping(model.modelName, function(err, response, status) {
+    if(status === 404) {
+      elastic.renderMapping(model, function(err, mapping) {
+        if(!err && mapping) {
+          elastic.putMapping(model.modelName, mapping, function(err) {
+            model.schema.elastic = mapping;
+            callback(err, model);
+          });
+        } else {
+          callback(err, model);
+        }
+      });
+    } else {
+      callback(err, model);
+    }
+  });
+};
+
+/**
+ * Check and create index
+ * @param model
+ * @param callback - Returns if new index was created or not
+ */
+mongolastic.prototype.indexCheckCreate = function(model, callback) {
+  var elastic = getInstance();
+  elastic.indexExists(model.modelName, function(err, response) {
+    if(!response) {
+      elastic.indexCreate(model, {}, function (err) {
+        callback(err, true);
+      });
+    } else {
+      callback(err, false);
+    }
+  });
+};
+
+/**
+ * Check if the index exists
+ * @param modelname
+ * @param callback
+ */
+mongolastic.prototype.indexExists = function indexExists(modelname, callback) {
+  var elastic = getInstance();
+  elastic.connection.indices.exists({
+    index: elastic.indexNameFromModel(modelname),
+    type: modelname
+  }, callback);
+};
+
+/**
+ * Create a index
+ * @param modelname
+ * @param callback
+ */
+mongolastic.prototype.indexCreate = function indexCreate(model, options, callback) {
+  var elastic = getInstance();
+  elastic.renderMapping(model, function(err, mapping) {
+    elastic.indices.create(
+      model.modelName,
+      options,
+      mapping,
+      callback);
+  });
+};
+
+
+/**
+ * Get the current mapping
+ * @param modelname
+ * @param callback
+ */
 mongolastic.prototype.getMapping = function(modelname, callback) {
   var elastic = getInstance();
 
@@ -113,6 +277,12 @@ mongolastic.prototype.getMapping = function(modelname, callback) {
   }, callback);
 };
 
+/**
+ * Put a new mapping
+ * @param modelname
+ * @param mapping
+ * @param callback
+ */
 mongolastic.prototype.putMapping = function(modelname, mapping, callback) {
   var elastic = getInstance();
 
