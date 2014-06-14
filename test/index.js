@@ -38,7 +38,7 @@ describe('mongolastic', function(){
       mapping: {
         'location.geo': { type: 'geo_point', 'lat_lon': true }
       }
-    }
+    };
 
     DogSchema = mongoose.Schema({
       name: String,

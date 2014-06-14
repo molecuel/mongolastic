@@ -5,7 +5,7 @@ var elasticsearch = require('elasticsearch');
 var indices = require('./lib/indices');
 var instance;
 var async = require('async');
-var _ = require('underscore');
+//var _ = require('underscore');
 
 /**
  * Module definition
