@@ -34,6 +34,12 @@ describe('mongolastic', function(){
     CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
     cat = mongoose.model('cat', CatSchema);
 
+    cat.elastic = {
+      mapping: {
+        'location.geo': { type: 'geo_point', 'lat_lon': true }
+      }
+    }
+
     DogSchema = mongoose.Schema({
       name: String,
       date: {type: Date, default: Date.now},

@@ -5,6 +5,7 @@ var elasticsearch = require('elasticsearch');
 var indices = require('./lib/indices');
 var instance;
 var async = require('async');
+var _ = require('underscore');
 
 /**
  * Module definition
@@ -169,19 +170,39 @@ mongolastic.prototype.renderMapping = function(model, callback) {
     }
   };
 
-  async.each(Object.keys(model.schema.paths), function(currentkey, cb) {
-    var currentPath = model.schema.paths[currentkey];
-    if(currentPath && currentPath.options && currentPath.options.elastic && currentPath.options.elastic.mapping) {
-      mapping[model.modelName].properties[currentkey] = currentPath.options.elastic.mapping;
-      cb();
-    } else {
-      cb();
+  async.series([
+    function(callback) {
+      async.each(Object.keys(model.schema.paths), function(currentkey, cb) {
+        var currentPath = model.schema.paths[currentkey];
+        if(currentPath && currentPath.options && currentPath.options.elastic && currentPath.options.elastic.mapping) {
+          mapping[model.modelName].properties[currentkey] = currentPath.options.elastic.mapping;
+          cb();
+        } else {
+          cb();
+        }
+      }, function(err) {
+        callback(err);
+      });
+    },
+    function(callback) {
+      if(model.elastic && model.elastic.mapping) {
+        async.each(Object.keys(model.elastic.mapping), function(currentkey, cb) {
+          mapping[model.modelName].properties[currentkey] = model.elastic.mapping[currentkey];
+          cb();
+        }, function(err) {
+          callback(err);
+        });
+      } else {
+        callback();
+      }
     }
-  }, function(err) {
+  ],function(err) {
     var map = deepen(mapping[model.modelName].properties);
     mapping[model.modelName].properties = map;
     callback(err, mapping);
   });
+
+
 };
 
 /**
