@@ -66,8 +66,14 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
   });
 };
 
+/**
+ * Populates object references according to their elastic-options. Invoked on pre(save) and sync to enable synchronisation
+ * of full object trees to elasticsearch index
+ * @param doc
+ * @param schema
+ * @param callback
+ */
 mongolastic.prototype.populate = function populate(doc, schema, callback) {
-
   async.each(Object.keys(schema.paths), function(currentpath, callback) {
     if(schema.paths[currentpath] && schema.paths[currentpath].options && schema.paths[currentpath].options.ref) {
       if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.avoidpop ) {
@@ -89,10 +95,9 @@ mongolastic.prototype.populate = function populate(doc, schema, callback) {
       callback();
     }
   });
-}
+};
 
 mongolastic.prototype.plugin = function plugin(schema, options) {
-
   if(options.modelname) {
     var elastic = getInstance();
 
