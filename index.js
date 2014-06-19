@@ -66,37 +66,49 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
   });
 };
 
+mongolastic.prototype.populate = function populate(doc, schema, callback) {
+
+  async.each(Object.keys(schema.paths), function(currentpath, callback) {
+    if(schema.paths[currentpath] && schema.paths[currentpath].options && schema.paths[currentpath].options.ref) {
+      if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.avoidpop ) {
+        callback();
+      } else {
+        if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.popfields) {
+          doc.populate(currentpath, schema.paths[currentpath].options.elastic.popfields, callback);
+        } else {
+          doc.populate(currentpath, callback);
+        }
+      }
+    } else {
+      callback();
+    }
+  }, function(err) {
+    if(err) {
+      callback(new Error('Could not populate document: ' + err));
+    } else {
+      callback();
+    }
+  });
+}
+
 mongolastic.prototype.plugin = function plugin(schema, options) {
+
   if(options.modelname) {
     var elastic = getInstance();
 
-    schema.pre('save', function(next, done) {
+     schema.pre('save', function(next, done) {
       var self = this;
-      async.each(Object.keys(schema.paths), function(currentpath, callback) {
-        if(schema.paths[currentpath] && schema.paths[currentpath].options && schema.paths[currentpath].options.ref) {
-          if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.avoidpop ) {
-            callback();
-          } else {
-            if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.popfields) {
-              self.populate(currentpath, schema.paths[currentpath].options.elastic.popfields, callback);
-            } else {
-              self.populate(currentpath, callback);
-            }
-          }
-        } else {
-          callback();
-        }
-      }, function(err) {
+      elastic.populate(self, schema, function(err) {
         if(!err) {
           elastic.index(options.modelname, self, function(err) {
             if(!err) {
               next();
             } else {
-              done(new Error('Could not save in Elasticsearch'));
+              done(new Error('Could not save in Elasticsearch index: ' + err));
             }
           });
         } else {
-          done(new Error('Could not save in Elasticsearch'));
+          done(new Error('Could not save in Elasticsearch: '+err));
         }
       });
     });
@@ -274,21 +286,36 @@ mongolastic.prototype.search = function(query, callback) {
 mongolastic.prototype.sync = function sync(model, modelname, callback) {
   var elastic = getInstance();
   var stream = model.find().stream();
+  var schema = model.schema;
   var errcount = 0;
   var rescount = 0;
   var doccount = 0;
   var donecount = 0;
   stream.on('data', function (doc) {
     doccount = doccount +1;
-    elastic.index(modelname, doc, function(err) {
-      donecount = donecount +1;
-      if(err) {
-        errcount = errcount +1;
+    elastic.populate(doc, schema, function(err) {
+      if(!err) {
+        elastic.index(modelname, doc, function(err) {
+          donecount = donecount +1;
+          if(err) {
+            errcount = errcount +1;
+          } else {
+            rescount = rescount +1;
+          }
+          if(donecount === doccount) {
+            callback(errcount, rescount);
+          }
+        });
       } else {
-        rescount = rescount +1;
-      }
-      if(donecount === doccount) {
-        callback(errcount, rescount);
+        donecount = donecount +1;
+        if(err) {
+          errcount = errcount +1;
+        } else {
+          rescount = rescount +1;
+        }
+        if(donecount === doccount) {
+          callback(errcount, rescount);
+        }
       }
     });
   });
