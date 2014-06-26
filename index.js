@@ -75,18 +75,24 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
  */
 mongolastic.prototype.populate = function populate(doc, schema, callback) {
   async.each(Object.keys(schema.paths), function(currentpath, callback) {
-    if(schema.paths[currentpath] && schema.paths[currentpath].options && schema.paths[currentpath].options.ref) {
-      if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.avoidpop ) {
-        callback();
-      } else {
-        if(schema.paths[currentpath].options.elastic && schema.paths[currentpath].options.elastic.popfields) {
-          doc.populate(currentpath, schema.paths[currentpath].options.elastic.popfields, callback);
-        } else {
-          doc.populate(currentpath, callback);
-        }
+    if(schema.paths[currentpath] && schema.paths[currentpath].options) {
+      var options = schema.paths[currentpath].options;
+      if(options.type instanceof Array && options.type[0] && options.type[0].type) { //hande 1:n relationships []
+        options = schema.paths[currentpath].options.type[0];
       }
-    } else {
-      callback();
+      if(options.ref) {
+        if(options.elastic && options.elastic.avoidpop ) {
+          callback();
+        } else {
+          if(options.elastic && options.elastic.popfields) {
+            doc.populate(currentpath, options.elastic.popfields, callback);
+          } else {
+            doc.populate(currentpath, callback);
+          }
+        }
+      } else {
+        callback();
+      }
     }
   }, function(err) {
     if(err) {
