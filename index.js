@@ -73,7 +73,8 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
  * @param schema
  * @param callback
  */
-mongolastic.prototype.populate = function populate(doc, schema, callback) {
+mongolastic.prototype.populate = function populate(doc, schema, options, callback) {
+  var elastic = getInstance();
   async.each(Object.keys(schema.paths), function(currentpath, callback) {
     if(schema.paths[currentpath] && schema.paths[currentpath].options) {
       var options = schema.paths[currentpath].options;
@@ -98,9 +99,62 @@ mongolastic.prototype.populate = function populate(doc, schema, callback) {
     if(err) {
       callback(new Error('Could not populate document: ' + err));
     } else {
-      callback();
+      if(options.modelname == 'smallFamily') {
+        elastic.populateReferences(doc, schema, options, callback);
+      } else {
+        callback();
+      }
     }
   });
+};
+
+mongolastic.prototype.populateReferences = function populateReferences(doc, schema, options, callback) {
+
+  var populateProperties = function(doc, properties, callback) {
+    async.each(Object.keys(properties), function(property, cb) {
+      doc.populate(property, function(err) {
+        cb();
+      });
+    }, function(err) {
+      if(err) {
+        return callback(err);
+      }
+      callback();
+    });
+  };
+
+  var populateRecursive = function(doc, key, options, callback) {
+    if(doc.get(key) && options) {
+      if(doc.get(key) instanceof Array) {
+        async.eachSeries(doc.get(key), function(subdoc, cb) {
+          populateProperties(subdoc, options, cb);
+        },function(err) {
+          if(err) {
+            return callback(err);
+          }
+          return callback();
+        });
+      } else {
+        populateProperties(doc.get(key), options, callback);
+      }
+    } else {
+      callback();
+    }
+  };
+
+  //doc.luminaires = [];
+  if(options.population) {
+    async.each(Object.keys(options.population), function(key, cb) {
+      populateRecursive(doc, key, options.population[key], cb);
+    }, function(err) {
+      if(err) {
+        return callback(err);
+      }
+      callback();
+    });
+  } else {
+    callback();
+  }
 };
 
 mongolastic.prototype.plugin = function plugin(schema, options) {
@@ -109,12 +163,13 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
 
      schema.pre('save', function(next, done) {
       var self = this;
-      elastic.populate(self, schema, function(err) {
+      elastic.populate(self, schema, options, function(err) {
         if(!err) {
           elastic.index(options.modelname, self, function(err) {
             if(!err) {
               next();
             } else {
+              console.log("ERROR ");
               done(new Error('Could not save in Elasticsearch index: ' + err));
             }
           });
