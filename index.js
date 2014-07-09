@@ -73,7 +73,7 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
  * @param schema
  * @param callback
  */
-mongolastic.prototype.populate = function populate(doc, schema, options, callback) {
+mongolastic.prototype.populate = function populate(doc, schema, callback) {
   var elastic = getInstance();
   async.each(Object.keys(schema.paths), function(currentpath, callback) {
     if(schema.paths[currentpath] && schema.paths[currentpath].options) {
@@ -85,7 +85,9 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
         if(options.elastic && options.elastic.avoidpop ) {
           callback();
         } else {
-          if(options.elastic && options.elastic.popfields) {
+          if(options.elastic && options.elastic.populate) {
+            elastic.populateSubdoc(doc, schema, currentpath, options.elastic.populate, callback);
+          } else if(options.elastic && options.elastic.popfields) {
             doc.populate(currentpath, options.elastic.popfields, callback);
           } else {
             doc.populate(currentpath, callback);
@@ -98,17 +100,12 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
   }, function(err) {
     if(err) {
       callback(new Error('Could not populate document: ' + err));
-    } else {
-      if(options.modelname == 'smallFamily') {
-        elastic.populateReferences(doc, schema, options, callback);
-      } else {
-        callback();
-      }
     }
+    callback();
   });
 };
 
-mongolastic.prototype.populateReferences = function populateReferences(doc, schema, options, callback) {
+mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, currentpath, options, callback) {
 
   var populateProperties = function(doc, properties, callback) {
     async.each(Object.keys(properties), function(property, cb) {
@@ -142,19 +139,14 @@ mongolastic.prototype.populateReferences = function populateReferences(doc, sche
     }
   };
 
-  //doc.luminaires = [];
-  if(options.population) {
-    async.each(Object.keys(options.population), function(key, cb) {
-      populateRecursive(doc, key, options.population[key], cb);
-    }, function(err) {
-      if(err) {
-        return callback(err);
-      }
-      callback();
-    });
-  } else {
-    callback();
-  }
+  // first the currentpath has to be populated to get the subdocument(s)
+  doc.populate(currentpath, function(err) {
+    if(err) {
+      callback(err);
+    } else {
+      populateRecursive(doc, currentpath, options, callback);
+    }
+  });
 };
 
 mongolastic.prototype.plugin = function plugin(schema, options) {
@@ -163,7 +155,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
 
      schema.pre('save', function(next, done) {
       var self = this;
-      elastic.populate(self, schema, options, function(err) {
+      elastic.populate(self, schema, function(err) {
         if(!err) {
           elastic.index(options.modelname, self, function(err) {
             if(!err) {
