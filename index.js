@@ -297,7 +297,10 @@ mongolastic.prototype.registerModel = function(model, callback) {
 mongolastic.prototype.index = function(modelname, entry, callback) {
   var elastic = getInstance();
 
-  var myid = entry._id.toString();
+  var myid;
+  if(entry && entry._id) {
+    myid = entry._id.toString();
+  }
 
   elastic.connection.index({
     index: elastic.indexNameFromModel(modelname),
