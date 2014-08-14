@@ -75,26 +75,46 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
  */
 mongolastic.prototype.populate = function populate(doc, schema, callback) {
   var elastic = getInstance();
+
+  function populateReferences(options, currentpath, callback) {
+    if(options.ref) {
+      if(options.elastic && options.elastic.avoidpop ) {
+        callback();
+      } else {
+        if(options.elastic && options.elastic.populate) {
+          elastic.populateSubdoc(doc, schema, currentpath, options.elastic.populate, callback);
+        } else if(options.elastic && options.elastic.popfields) {
+          doc.populate(currentpath, options.elastic.popfields, callback);
+        } else {
+          doc.populate(currentpath, callback);
+        }
+      }
+    } else {
+      callback();
+    }
+  }
+
   async.each(Object.keys(schema.paths), function(currentpath, callback) {
     if(schema.paths[currentpath] && schema.paths[currentpath].options) {
       var options = schema.paths[currentpath].options;
-      if(options.type instanceof Array && options.type[0] && options.type[0].type) { //hande 1:n relationships []
-        options = schema.paths[currentpath].options.type[0];
-      }
-      if(options.ref) {
-        if(options.elastic && options.elastic.avoidpop ) {
-          callback();
+
+      if(options.type instanceof Array) { //hande 1:n relationships []
+        if(options.type[0] && options.type[0].type) { // direct object references
+          options = schema.paths[currentpath].options.type[0];
+          populateReferences(options, currentpath, callback);
+        } else if(options.type[0]) {
+          async.each(Object.keys(options.type[0]), function(key, cb) {
+            var suboptions = options.type[0][key];
+            var subpath = currentpath + '.' + key;
+            populateReferences(suboptions, subpath, cb);
+          }, function(err) {
+            callback();
+          });
         } else {
-          if(options.elastic && options.elastic.populate) {
-            elastic.populateSubdoc(doc, schema, currentpath, options.elastic.populate, callback);
-          } else if(options.elastic && options.elastic.popfields) {
-            doc.populate(currentpath, options.elastic.popfields, callback);
-          } else {
-            doc.populate(currentpath, callback);
-          }
+          callback();
         }
       } else {
-        callback();
+        populateReferences(options, currentpath, callback);
       }
     }
   }, function(err) {
@@ -123,7 +143,7 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
   var populateRecursive = function(doc, key, options, callback) {
     if(doc.get(key) && options) {
       if(doc.get(key) instanceof Array) {
-        async.eachSeries(doc.get(key), function(subdoc, cb) {
+        async.each(doc.get(key), function(subdoc, cb) {
           populateProperties(subdoc, options, cb);
         },function(err) {
           if(err) {
@@ -161,7 +181,6 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
             if(!err) {
               next();
             } else {
-              console.log("ERROR ");
               done(new Error('Could not save in Elasticsearch index: ' + err));
             }
           });
