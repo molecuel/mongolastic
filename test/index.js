@@ -219,6 +219,12 @@ describe('mongolastic', function(){
         done();
       });
     });
+
+    it('should return the correct prefix', function(done) {
+      assert.equal(mongolastic.getIndexName('model'), 'mongolastic-model');
+      assert.equal(mongolastic.getIndexName('mongolastic-model'), 'mongolastic-model');
+      done();
+    });
   });
 
   after(function(done) {
