@@ -107,7 +107,7 @@ mongolastic.prototype.populate = function populate(doc, schema, callback) {
             var suboptions = options.type[0][key];
             var subpath = currentpath + '.' + key;
             populateReferences(suboptions, subpath, cb);
-          }, function(err) {
+          }, function() {
             callback();
           });
         } else {
@@ -129,7 +129,7 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
 
   var populateProperties = function(doc, properties, callback) {
     async.each(Object.keys(properties), function(property, cb) {
-      doc.populate(property, function(err) {
+      doc.populate(property, function() {
         cb();
       });
     }, function(err) {
@@ -173,7 +173,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
   if(options.modelname) {
     var elastic = getInstance();
 
-     schema.pre('save', function(next, done) {
+    schema.pre('save', function(next, done) {
       var self = this;
       elastic.populate(self, schema, function(err) {
         if(!err) {
@@ -203,7 +203,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
      * @param cb
      */
     schema.methods.search = function(query, cb) {
-      query.index = elastic.prefix + '-' + options.modelname;
+      query.index = elastic.getIndexName(options.modelname);
       elastic.search(query, cb);
     };
 
@@ -322,7 +322,7 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
   }
 
   elastic.connection.index({
-    index: elastic.indexNameFromModel(modelname),
+    index: elastic.getIndexName(modelname),
     type: modelname,
     id: myid,
     body: entry
@@ -338,7 +338,7 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
 mongolastic.prototype.delete = function(modelname, id, callback) {
   var elastic = getInstance();
   elastic.connection.delete({
-    index: elastic.indexNameFromModel(modelname),
+    index: elastic.getIndexName(modelname),
     type: modelname,
     id: id
   }, callback);
@@ -407,7 +407,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
  * @param callback
  */
 mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
-  this.connection.indices.delete({index: this.indexNameFromModel(modelname)}, callback);
+  this.connection.indices.delete({index: this.getIndexName(modelname)}, callback);
 };
 
 /**
@@ -415,8 +415,18 @@ mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
  * @param modelname
  * @returns {string}
  */
-mongolastic.prototype.indexNameFromModel = function(modelname) {
-  return this.prefix + '-' + modelname.toLowerCase();
+mongolastic.prototype.getIndexName = function(name) {
+  var mlelast = getInstance();
+  if(mlelast.prefix) {
+    if(name.indexOf(mlelast.prefix+'-') === 0) {
+      return name.toLowerCase();
+    } else {
+      return mlelast.prefix + '-' + name.toLowerCase();
+    }
+  } else {
+    return name.toLowerCase();
+  }
 };
+
 
 module.exports = getInstance();
