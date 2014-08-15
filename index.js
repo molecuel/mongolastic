@@ -390,12 +390,16 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   var doccount = 0;
   var donecount = 0;
   var bulk = [];
+  var size = 1000;
+  var step = 0;
   stream.on('data', function (doc) {
     doccount = doccount +1;
-    //stream.pause();
+    stream.pause();
     elastic.populate(doc, schema, function(err) {
-      //console.log(donecount);
+      console.log("pop: " + donecount);
+      step = step + 1;
       donecount = donecount +1;
+
       if(!err) {
         var action = {
           index: {
@@ -406,21 +410,6 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
         }
         bulk.push(action);
         bulk.push(doc);
-        /**
-        elastic.index(modelname, doc, function(err) {
-          donecount = donecount +1;
-          if(err) {
-            console.log("error indexing doc " + doc._id + " " + err);
-            errcount = errcount +1;
-          } else {
-            rescount = rescount +1;
-          }
-          stream.resume();
-          if(donecount === doccount) {
-            callback(errcount, rescount);
-          }
-        });
-        **/
       } else {
         console.log("error populate doc " + doc._id + " " + err);
         if(err) {
@@ -429,10 +418,24 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
           rescount = rescount +1;
         }
       }
+
+      if(step >= size) {
+        console.log("bulk : " + bulk.length);
+        elastic.bulk(bulk, function(err) {
+          if(err) {
+            console.log(err);
+          }
+          bulk = [];
+          step = 0;
+          stream.resume();
+        });
+      } else {
+        stream.resume();
+      }
     });
   });
+
   stream.on('end', function() {
-    //stream.resume();
     console.log("BULK : " + bulk.length);
     elastic.bulk(bulk, function(err) {
       if(err) {
