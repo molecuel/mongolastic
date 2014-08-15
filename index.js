@@ -259,19 +259,31 @@ mongolastic.prototype.renderMapping = function(model, callback) {
     }
   };
 
+  // Recursive mapping (supports nested/subdocs)
+  function map_create(k, currentkey, cb) {
+    var currentPath = k.schema.paths[currentkey];
+    if(currentPath && currentPath.options && currentPath.options.elastic && currentPath.options.elastic.mapping) {
+      k.mapping[currentkey] = currentPath.options.elastic.mapping;
+      cb();
+    } else if (currentPath && 'schema' in currentPath) {
+      k.mapping[currentkey] = { type: 'nested', properties: {} };
+      async.each(Object.keys(currentPath.schema.paths), 
+        map_create.bind(null, {schema: currentPath.schema, mapping: k.mapping[currentkey].properties}),
+        cb
+      );
+    } else {
+      cb();
+    }
+  }
+
   async.series([
     function(callback) {
-      async.each(Object.keys(model.schema.paths), function(currentkey, cb) {
-        var currentPath = model.schema.paths[currentkey];
-        if(currentPath && currentPath.options && currentPath.options.elastic && currentPath.options.elastic.mapping) {
-          mapping[model.modelName].properties[currentkey] = currentPath.options.elastic.mapping;
-          cb();
-        } else {
-          cb();
+      async.each(Object.keys(model.schema.paths), 
+        map_create.bind(null, { schema: model.schema, mapping: mapping[model.modelName].properties }), 
+        function(err) {
+          callback(err);
         }
-      }, function(err) {
-        callback(err);
-      });
+      );
     },
     function(callback) {
       if(model.elastic && model.elastic.mapping) {
