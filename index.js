@@ -386,7 +386,9 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
           } else {
             rescount = rescount +1;
           }
-          stream.resume();
+          setTimeout(function() {
+              stream.resume();
+          }, 100);
           if(donecount === doccount) {
             callback(errcount, rescount);
           }
