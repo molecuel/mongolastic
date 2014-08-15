@@ -373,9 +373,11 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   var donecount = 0;
   stream.on('data', function (doc) {
     doccount = doccount +1;
+    console.log(doccount);
     elastic.populate(doc, schema, function(err) {
       if(!err) {
         elastic.index(modelname, doc, function(err) {
+          console.log("error indexing doc " + doc._id + " " + err);
           donecount = donecount +1;
           if(err) {
             errcount = errcount +1;
@@ -387,6 +389,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
           }
         });
       } else {
+        console.log("error populate doc " + doc._id + " " + err);
         donecount = donecount +1;
         if(err) {
           errcount = errcount +1;
