@@ -325,7 +325,25 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
     index: elastic.getIndexName(modelname),
     type: modelname,
     id: myid,
-    body: entry
+    body: entry,
+    refresh: true
+  }, callback);
+};
+
+/**
+ * Index data
+ * @param modelname
+ * @param entry
+ * @param callback
+ */
+mongolastic.prototype.bulk = function(body, callback) {
+  var elastic = getInstance();
+
+  elastic.connection.bulk({
+    //index: elastic.getIndexName(modelname),
+    //type: modelname,
+    body: body,
+    refresh: true
   }, callback);
 };
 
@@ -371,13 +389,24 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   var rescount = 0;
   var doccount = 0;
   var donecount = 0;
+  var bulk = [];
   stream.on('data', function (doc) {
     doccount = doccount +1;
-    console.log(doccount);
-    stream.pause();
+    //stream.pause();
     elastic.populate(doc, schema, function(err) {
-      console.log("ready pop "  + doccount);
+      //console.log(donecount);
+      donecount = donecount +1;
       if(!err) {
+        var action = {
+          index: {
+            '_index': elastic.getIndexName(modelname),
+            '_type': modelname,
+            '_id': doc._id.toString()
+          }
+        }
+        bulk.push(action);
+        bulk.push(doc);
+        /**
         elastic.index(modelname, doc, function(err) {
           donecount = donecount +1;
           if(err) {
@@ -386,26 +415,30 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
           } else {
             rescount = rescount +1;
           }
-          setTimeout(function() {
-              stream.resume();
-          }, 100);
+          stream.resume();
           if(donecount === doccount) {
             callback(errcount, rescount);
           }
         });
+        **/
       } else {
         console.log("error populate doc " + doc._id + " " + err);
-        donecount = donecount +1;
         if(err) {
           errcount = errcount +1;
         } else {
           rescount = rescount +1;
         }
-        stream.resume();
-        if(donecount === doccount) {
-          callback(errcount, rescount);
-        }
       }
+    });
+  });
+  stream.on('end', function() {
+    //stream.resume();
+    console.log("BULK : " + bulk.length);
+    elastic.bulk(bulk, function(err) {
+      if(err) {
+        console.log(err);
+      }
+      callback(errcount, rescount);
     });
   });
 };
