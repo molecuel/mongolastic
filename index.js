@@ -374,16 +374,19 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   stream.on('data', function (doc) {
     doccount = doccount +1;
     console.log(doccount);
+    stream.pause();
     elastic.populate(doc, schema, function(err) {
+      console.log("ready pop "  + doccount);
       if(!err) {
         elastic.index(modelname, doc, function(err) {
-          console.log("error indexing doc " + doc._id + " " + err);
           donecount = donecount +1;
           if(err) {
+            console.log("error indexing doc " + doc._id + " " + err);
             errcount = errcount +1;
           } else {
             rescount = rescount +1;
           }
+          stream.resume();
           if(donecount === doccount) {
             callback(errcount, rescount);
           }
@@ -396,6 +399,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
         } else {
           rescount = rescount +1;
         }
+        stream.resume();
         if(donecount === doccount) {
           callback(errcount, rescount);
         }
