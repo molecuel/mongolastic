@@ -33,6 +33,9 @@ var cat = mongoose.model('cat', CatSchema);
 - Recursive population of documents
 - Render a specific mapping for document types
 - Sync function
+- Sync function as much more performant bulk operation
+
+By the way... mongolastic is a core component of the upcoming molecuel CMS. [https://github.com/molecuel](https://github.com/molecuel)
 
 ## License (MIT)
 
