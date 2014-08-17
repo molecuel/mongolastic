@@ -14,7 +14,8 @@ describe('mongolastic', function(){
 
     CostumeSchema = mongoose.Schema({
       name: {type: String},
-      color: {type: String}
+      color: {type: String},
+      integer: {type: Number, elastic: {mapping: {type: 'integer'}}}
     });
     CostumeSchema.plugin(mongolastic.plugin, {modelname: 'costume'});
     costume = mongoose.model('costume', CostumeSchema);
