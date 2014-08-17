@@ -230,10 +230,8 @@ describe('mongolastic', function(){
 
   after(function(done) {
     mongoose.connection.db.dropDatabase(function() {
-      mongolastic.deleteIndex('cat', function() {
-        mongolastic.deleteIndex('dog', function() {
-          done();
-        });
+      mongolastic.deleteIndex('*', function() {
+        done();
       });
     });
   });
