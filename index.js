@@ -396,7 +396,6 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
     doccount = doccount +1;
     stream.pause();
     elastic.populate(doc, schema, function(err) {
-      console.log("pop: " + donecount);
       step = step + 1;
       donecount = donecount +1;
 
@@ -407,11 +406,11 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
             '_type': modelname,
             '_id': doc._id.toString()
           }
-        }
+        };
         bulk.push(action);
         bulk.push(doc);
       } else {
-        console.log("error populate doc " + doc._id + " " + err);
+        console.err('error populate doc ' + doc._id + ' ' + err);
         if(err) {
           errcount = errcount +1;
         } else {
@@ -420,10 +419,9 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
       }
 
       if(step >= size) {
-        console.log("bulk : " + bulk.length);
         elastic.bulk(bulk, function(err) {
           if(err) {
-            console.log(err);
+            console.err(err);
           }
           bulk = [];
           step = 0;
@@ -436,12 +434,11 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   });
 
   stream.on('end', function() {
-    console.log("BULK : " + bulk.length);
     elastic.bulk(bulk, function(err) {
       if(err) {
-        console.log(err);
+        console.err(err);
       }
-      callback(errcount, rescount);
+      callback(errcount, donecount);
     });
   });
 };
