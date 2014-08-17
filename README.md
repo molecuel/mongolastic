@@ -28,9 +28,11 @@ CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
 var cat = mongoose.model('cat', CatSchema);
 ```
 
-##  Todo
-
-- ~~Sync function~~ (DONE)
+## Additional new functions
+- References can be automatically saved as denormalized (populated) version in the elasticsearch index.
+- Recursive population of documents
+- Render a specific mapping for document types
+- Sync function
 
 ## License (MIT)
 
