@@ -325,7 +325,25 @@ mongolastic.prototype.index = function(modelname, entry, callback) {
     index: elastic.getIndexName(modelname),
     type: modelname,
     id: myid,
-    body: entry
+    body: entry,
+    refresh: true
+  }, callback);
+};
+
+/**
+ * Index data
+ * @param modelname
+ * @param entry
+ * @param callback
+ */
+mongolastic.prototype.bulk = function(body, callback) {
+  var elastic = getInstance();
+
+  elastic.connection.bulk({
+    //index: elastic.getIndexName(modelname),
+    //type: modelname,
+    body: body,
+    refresh: true
   }, callback);
 };
 
@@ -371,32 +389,59 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   var rescount = 0;
   var doccount = 0;
   var donecount = 0;
+  var bulk = [];
+  var size = 1000;
+  var step = 0;
   stream.on('data', function (doc) {
     doccount = doccount +1;
+    stream.pause();
     elastic.populate(doc, schema, function(err) {
+      console.log("pop: " + donecount);
+      step = step + 1;
+      donecount = donecount +1;
+
       if(!err) {
-        elastic.index(modelname, doc, function(err) {
-          donecount = donecount +1;
-          if(err) {
-            errcount = errcount +1;
-          } else {
-            rescount = rescount +1;
+        var action = {
+          index: {
+            '_index': elastic.getIndexName(modelname),
+            '_type': modelname,
+            '_id': doc._id.toString()
           }
-          if(donecount === doccount) {
-            callback(errcount, rescount);
-          }
-        });
+        }
+        bulk.push(action);
+        bulk.push(doc);
       } else {
-        donecount = donecount +1;
+        console.log("error populate doc " + doc._id + " " + err);
         if(err) {
           errcount = errcount +1;
         } else {
           rescount = rescount +1;
         }
-        if(donecount === doccount) {
-          callback(errcount, rescount);
-        }
       }
+
+      if(step >= size) {
+        console.log("bulk : " + bulk.length);
+        elastic.bulk(bulk, function(err) {
+          if(err) {
+            console.log(err);
+          }
+          bulk = [];
+          step = 0;
+          stream.resume();
+        });
+      } else {
+        stream.resume();
+      }
+    });
+  });
+
+  stream.on('end', function() {
+    console.log("BULK : " + bulk.length);
+    elastic.bulk(bulk, function(err) {
+      if(err) {
+        console.log(err);
+      }
+      callback(errcount, rescount);
     });
   });
 };
