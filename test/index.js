@@ -77,6 +77,22 @@ describe('mongolastic', function(){
       });
     });
 
+    it('should create the mapping for the dog model', function(done) {
+      mongolastic.registerModel(dog, function(err, result) {
+        should.not.exist(err);
+        result.should.be.a.function;
+        done();
+      });
+    });
+
+    it('should create the mapping for the costume model', function(done) {
+      mongolastic.registerModel(costume, function(err, result) {
+        should.not.exist(err);
+        result.should.be.a.function;
+        done();
+      });
+    });
+
     it('should return the mappings for the cat model', function(done) {
       mongolastic.indices.getMapping(cat.modelName, function(err, response, status) {
         should.not.exist(err);
@@ -168,6 +184,7 @@ describe('mongolastic', function(){
         name: 'Batman',
         color: 'black'
       });
+
       bat.save(function (err, result) {
         should.not.exist(err);
         result.should.be.an.Object;
@@ -180,6 +197,7 @@ describe('mongolastic', function(){
         name: 'Batcat',
         costume: bat._id
       });
+
       batcat.save(function (err, result) {
         should.not.exist(err);
         result.should.be.an.Object;
@@ -200,6 +218,25 @@ describe('mongolastic', function(){
         result.costume.should.be.an.Object;
         result.costume.name.should.be.an.String;
         result.costume.color.should.be.an.String;
+        done();
+      });
+    });
+
+    it('should create a new entry with custom save handler for the object type', function(done) {
+      costume.registerSaveHandler(function(err, result, options, callback) {
+        result.test = true;
+        callback();
+      });
+
+      bat = new costume({
+        name: 'Batman',
+        color: 'black'
+      });
+
+      bat.save(function (err, result) {
+        should.not.exist(err);
+        result.should.be.an.Object;
+        result.test.should.be.true;
         done();
       });
     });

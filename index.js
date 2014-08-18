@@ -294,6 +294,23 @@ mongolastic.prototype.renderMapping = function(model, callback) {
 
 };
 
+mongolastic.prototype.defaultSaveHandler = function(err, result, options, callback) {
+  var elastic = getInstance();
+  if(err && options.isNew) {
+    // delete document from eleasticsearch
+    elastic.delete(options.doc.constructor.modelName, options.doc.id, function(elerr) {
+      if(elerr) {
+        console.err(elerr);
+        callback();
+      } else {
+        callback();
+      }
+    });
+  } else {
+    callback();
+  }
+};
+
 /**
  * When registering a new mongoose model
  * @param model
@@ -301,12 +318,50 @@ mongolastic.prototype.renderMapping = function(model, callback) {
  */
 mongolastic.prototype.registerModel = function(model, callback) {
   var elastic = getInstance();
+  /**
+  * Change the save function of the model
+  **/
+  // save the original save function
+  model.prototype.saveOrig = model.prototype.save;
+
+  model.registerSaveHandler = function(saveHandler) {
+    model.saveHandlers.push(saveHandler);
+  };
+
+  model.saveHandlers = [];
+
+  model.registerSaveHandler(elastic.defaultSaveHandler);
+
+  // create a new save function and call the original function
+  model.prototype.save = function save(cb) {
+    var self = this;
+    var options = {
+      isNew: self.isNew,
+      doc: self
+    };
+
+    model.prototype.saveOrig.call(this, function(err, result) {
+      async.eachSeries(model.saveHandlers, function(item, callback) {
+        if('function' === typeof item) {
+          item(err, result, options, callback);
+        } else {
+          callback();
+        }
+      }, function(err) {
+        cb(err, result);
+      });
+    });
+  };
+
+  /**
+  * Create index when registering the model
+  **/
   elastic.indices.checkCreateByModel(model,
     function(err) {
       callback(err, model);
-    });
+    }
+  );
 };
-
 /**
  * Index data
  * @param modelname

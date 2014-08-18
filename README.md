@@ -18,14 +18,33 @@ var mongolastic = require('mongolastic');
 var mongoose = require('mongoose');
 
 mongoose.connect('mongodb://localhost/mongolastic');
+
+var CostumeSchema = mongoose.Schema({
+  name: String,
+});
+CostumeSchema.plugin(mongolastic.plugin, {modelname: 'costume'});
+var costume = mongoose.model('costume', CostumeSchema);
+// add additional functions to the model and create the index with the mapping
+mongolastic.registerModel(costume, function(err, res) {
+  console.log('model registered and mapping created');
+});
+
 var CatSchema = mongoose.Schema({
   name: String,
-  date: {type: Date, default: Date.now}
+  date: {type: Date, default: Date.now},
+  // this is a sample for a additional mapping
+  url: {type: String, elastic: {mapping: {type: 'string', index: 'not_analyzed'}}},
+  // automatic population of references to the index + select fields to populate
+  costume: {type: mongoose.Schema.ObjectId, ref: 'costume', elastic: {popfields: 'name'}}
 });
 
 // modelname is important to provide the correct index for the model
 CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
 var cat = mongoose.model('cat', CatSchema);
+// add additional functions to the model and create the index with the mapping
+mongolastic.registerModel(cat, function(err, res) {
+  console.log('model registered and mapping created');
+});
 ```
 
 ## Additional new functions
@@ -34,6 +53,7 @@ var cat = mongoose.model('cat', CatSchema);
 - Render a specific mapping for document types
 - Sync function
 - Sync function as much more performant bulk operation
+- Registration of save handlers per model. These are needed to execute advanced save handling functionality after the document has been saved to the mongodb
 
 By the way... mongolastic is a core component of the upcoming molecuel CMS. [https://github.com/molecuel](https://github.com/molecuel)
 
