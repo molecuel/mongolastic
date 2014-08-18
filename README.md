@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/inspirationlabs/mongolastic.svg?branch=master)](https://travis-ci.org/inspirationlabs/mongolastic)
+[![Build Status](https://travis-ci.org/molecuel/mongolastic.svg?branch=master)](https://travis-ci.org/molecuel/mongolastic)
 
 [![NPM](https://nodei.co/npm-dl/mongolastic.png?months=1)](https://nodei.co/npm/mongolastic/)
 
