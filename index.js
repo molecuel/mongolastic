@@ -10,7 +10,6 @@ var async = require('async');
 /**
  * Module definition
  */
-
 var mongolastic = function() {
   this.connection = null;
   this.prefix = null;
@@ -169,6 +168,13 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
   });
 };
 
+
+/**
+ * plugin - Mongoose model plugin
+ *
+ * @param  {object} schema  The mongoose schema
+ * @param  {object} options Additional options
+ */
 mongolastic.prototype.plugin = function plugin(schema, options) {
   if(options.modelname) {
     var elastic = getInstance();
@@ -193,7 +199,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     schema.post('remove', function() {
       elastic.delete(options.modelname, this.id, function(err) {
         if(err) {
-          console.log(err);
+          console.error(err);
         }
       });
     });
@@ -218,7 +224,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     };
 
   } else {
-    console.log('missing modelname');
+    console.error('missing modelname');
   }
 };
 
@@ -290,10 +296,20 @@ mongolastic.prototype.renderMapping = function(model, callback) {
     mapping[model.modelName].properties = map;
     callback(err, mapping);
   });
-
-
 };
 
+
+ /**
+  * The default save handler
+  *
+  * @todo This is currently not working correctly. You have to implement this
+  * functionality in your project to be sure it is executed on errors
+  *
+  * @param {object} error The error object
+  * @param {object} result The database result
+  * @param {object} options Additional options
+  * @param {function} callback The callback function
+  */
 mongolastic.prototype.defaultSaveHandler = function(err, result, options, callback) {
   var elastic = getInstance();
   if(err && options.isNew) {
@@ -330,18 +346,30 @@ mongolastic.prototype.registerModel = function(model, callback) {
 
   model.saveHandlers = [];
 
-  model.registerSaveHandler(elastic.defaultSaveHandler);
+  // This iss currently disabled caused by the handling of mongoose and has to
+  // be implemented by a project specific library from you
+  //model.registerSaveHandler(elastic.defaultSaveHandler);
 
-  // create a new save function and call the original function
+  /**
+   * save - Overwrites the save function of the model
+   *
+   * @todo this is not working correctly cause mongoose seems to ignore it if a
+   * validation error occurs
+   *
+   * @param  {function} cb the callback function
+   */
   model.prototype.save = function save(cb) {
     var self = this;
+
+    // add some options
     var options = {
-      isNew: self.isNew,
-      doc: self
+      isNew: self.isNew
     };
 
+    // call the original save function
     model.prototype.saveOrig.call(this, function(err, result) {
       async.eachSeries(model.saveHandlers, function(item, callback) {
+        // check if the saveHandler item is a function
         if('function' === typeof item) {
           item(err, result, options, callback);
         } else {
@@ -353,9 +381,10 @@ mongolastic.prototype.registerModel = function(model, callback) {
     });
   };
 
+
   /**
-  * Create index when registering the model
-  **/
+   * Creates the index for the model with the correct mapping
+   */
   elastic.indices.checkCreateByModel(model,
     function(err) {
       callback(err, model);
