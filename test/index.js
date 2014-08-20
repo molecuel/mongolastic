@@ -8,7 +8,7 @@ var assert = require('assert'),
 
 describe('mongolastic', function(){
   //mongoose.set('debug', true);
-  var cat, CatSchema, CostumeSchema, costume, DogSchema, dog;
+  var cat, CatSchema, CostumeSchema, costume, DogSchema, dog, FailSchema, myFail;
   before(function() {
     mongoose.connect('mongodb://localhost/mongolastic');
 
@@ -49,6 +49,13 @@ describe('mongolastic', function(){
     DogSchema.plugin(mongolastic.plugin, {modelname: 'dog'});
     dog = mongoose.model('dog', DogSchema);
 
+    FailSchema = mongoose.Schema({
+      name: String,
+      keyword: {type: String, required: true}
+    });
+    FailSchema.plugin(mongolastic.plugin, {modelname: 'fail'});
+    myFail = mongoose.model('fail', FailSchema);
+
   });
 
   describe('mongolastic', function () {
@@ -87,6 +94,14 @@ describe('mongolastic', function(){
 
     it('should create the mapping for the costume model', function(done) {
       mongolastic.registerModel(costume, function(err, result) {
+        should.not.exist(err);
+        result.should.be.a.function;
+        done();
+      });
+    });
+
+    it('should create the mapping for the myFail model', function(done) {
+      mongolastic.registerModel(myFail, function(err, result) {
         should.not.exist(err);
         result.should.be.a.function;
         done();
@@ -185,7 +200,7 @@ describe('mongolastic', function(){
         color: 'black'
       });
 
-      bat.save(function (err, result) {
+      mongolastic.save(bat, function (err, result) {
         should.not.exist(err);
         result.should.be.an.Object;
         done();
@@ -198,7 +213,7 @@ describe('mongolastic', function(){
         costume: bat._id
       });
 
-      batcat.save(function (err, result) {
+      mongolastic.save(batcat, function (err, result) {
         should.not.exist(err);
         result.should.be.an.Object;
         result.costume.should.be.an.Object;
@@ -212,7 +227,8 @@ describe('mongolastic', function(){
         name: 'DogBat',
         costume: bat._id
       });
-      dogbat.save(function (err, result) {
+
+      mongolastic.save(dogbat, function (err, result) {
         should.not.exist(err);
         result.should.be.an.Object;
         result.costume.should.be.an.Object;
@@ -233,7 +249,7 @@ describe('mongolastic', function(){
         color: 'black'
       });
 
-      bat.save(function (err, result) {
+      mongolastic.save(bat, function (err, result) {
         should.not.exist(err);
         result.should.be.an.Object;
         result.test.should.be.true;
@@ -262,6 +278,30 @@ describe('mongolastic', function(){
       assert.equal(mongolastic.getIndexName('model'), 'mongolastic-model');
       assert.equal(mongolastic.getIndexName('mongolastic-model'), 'mongolastic-model');
       done();
+    });
+
+    var testobject3;
+    it('should fail to save and remove objects from index', function(done) {
+      testobject3 = new myFail({
+        title: 'test2name',
+        lang: 'en'
+      });
+
+      mongolastic.save(testobject3, function(err) {
+        var query = {
+          'body': {
+            'query': {
+              'match': {'_id': testobject3._id}
+            }
+          }
+        };
+        testobject3.search(query, function(searcherr, result) {
+          should.exist(err);
+          should.not.exist(searcherr);
+          assert(result.hits.total === 0);
+          done();
+        });
+      });
     });
   });
 

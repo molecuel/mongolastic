@@ -5,6 +5,8 @@ var elasticsearch = require('elasticsearch');
 var indices = require('./lib/indices');
 var instance;
 var async = require('async');
+var util = require('util');
+var EventEmitter = require('events').EventEmitter;
 //var _ = require('underscore');
 
 /**
@@ -14,6 +16,8 @@ var mongolastic = function() {
   this.connection = null;
   this.prefix = null;
 };
+
+util.inherits(mongolastic, EventEmitter);
 
 /////////////////////
 // singleton stuff
@@ -124,6 +128,17 @@ mongolastic.prototype.populate = function populate(doc, schema, callback) {
   });
 };
 
+
+/**
+ * populateSubdoc - Populate at sub document before indexing it with elastic
+ *
+ * @param  {object} doc         the document
+ * @param  {object} schema      the schema
+ * @param  {string} currentpath the current path in schema
+ * @param  {object} options     additional options
+ * @param  {function} callback    the callback function
+ * @callback
+ */
 mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, currentpath, options, callback) {
 
   var populateProperties = function(doc, properties, callback) {
@@ -314,10 +329,9 @@ mongolastic.prototype.defaultSaveHandler = function(err, result, options, callba
   var elastic = getInstance();
   if(err && options.isNew) {
     // delete document from eleasticsearch
-    elastic.delete(options.doc.constructor.modelName, options.doc.id, function(elerr) {
+    elastic.delete(options.model.modelName, options.doc.id, function(elerr) {
       if(elerr) {
-        console.err(elerr);
-        callback();
+        callback(elerr);
       } else {
         callback();
       }
@@ -336,9 +350,9 @@ mongolastic.prototype.registerModel = function(model, callback) {
   var elastic = getInstance();
   /**
   * Change the save function of the model
+  * @deprecated Caused mongoose does not support this
   **/
-  // save the original save function
-  model.prototype.saveOrig = model.prototype.save;
+  //model.prototype.saveOrig = model.prototype.save;
 
   model.registerSaveHandler = function(saveHandler) {
     model.saveHandlers.push(saveHandler);
@@ -348,7 +362,7 @@ mongolastic.prototype.registerModel = function(model, callback) {
 
   // This iss currently disabled caused by the handling of mongoose and has to
   // be implemented by a project specific library from you
-  //model.registerSaveHandler(elastic.defaultSaveHandler);
+  model.registerSaveHandler(elastic.defaultSaveHandler);
 
   /**
    * save - Overwrites the save function of the model
@@ -357,7 +371,9 @@ mongolastic.prototype.registerModel = function(model, callback) {
    * validation error occurs
    *
    * @param  {function} cb the callback function
+   * @deprecated as mongoose does not support this
    */
+  /*
   model.prototype.save = function save(cb) {
     var self = this;
 
@@ -379,7 +395,7 @@ mongolastic.prototype.registerModel = function(model, callback) {
         cb(err, result);
       });
     });
-  };
+  };*/
 
 
   /**
@@ -391,6 +407,43 @@ mongolastic.prototype.registerModel = function(model, callback) {
     }
   );
 };
+
+mongolastic.prototype.save = function(document, callback) {
+  // add some options
+  var options = {
+    isNew: document.isNew,
+    model: document.constructor,
+    doc: document
+  };
+
+  var model = options.model;
+
+  // call the original save function
+  document.save(function(saveerr, result) {
+    if(model.saveHandlers) {
+      var asyncHandler = function asyncHandler(item, cb) {
+        // check if the saveHandler item is a function
+        if('function' === typeof item) {
+          item(saveerr, result, options, cb);
+        } else {
+          cb();
+        }
+      };
+      async.eachSeries(model.saveHandlers, asyncHandler, function(err) {
+        if(!err) {
+          callback(saveerr, result);
+        } else {
+          async.eachSeries(model.saveHandlers, asyncHandler, function(cleanuperr) {
+            callback(cleanuperr, result);
+          });
+        }
+      });
+    } else {
+      callback(saveerr, result);
+    }
+  });
+};
+
 /**
  * Index data
  * @param modelname
