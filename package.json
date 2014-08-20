@@ -10,10 +10,10 @@
   "repository": {
     "url": "https://github.com/molecuel/mongolastic"
   },
-  "version": "0.8.21",
+  "version": "0.8.22",
   "dependencies": {
     "elasticsearch": ">=0.0.1",
-    "async": ">=0.0.1",
+    "async": ">=0.0.1"
     "underscore": ">=0.0.1"
   },
   "devDependencies": {
