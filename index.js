@@ -409,6 +409,7 @@ mongolastic.prototype.registerModel = function(model, callback) {
 };
 
 mongolastic.prototype.save = function(document, callback) {
+  var self = this;
   // add some options
   var options = {
     isNew: document.isNew,
@@ -418,9 +419,19 @@ mongolastic.prototype.save = function(document, callback) {
 
   var model = options.model;
 
-  // call the original save function
+  /**
+   * Original save function of mongoose
+   */
   document.save(function(saveerr, result) {
     if(model.saveHandlers) {
+
+      /**
+       * asyncHandler - Async serial iterator over the registered save handlers
+       *
+       * @param  {function} item saveHandler function
+       * @param  {function} cb   callback function of async
+       * @callback
+       */
       var asyncHandler = function asyncHandler(item, cb) {
         // check if the saveHandler item is a function
         if('function' === typeof item) {
@@ -431,14 +442,17 @@ mongolastic.prototype.save = function(document, callback) {
       };
       async.eachSeries(model.saveHandlers, asyncHandler, function(err) {
         if(!err) {
+          self.emit('mongolastic::saveHandler:success', result);
           callback(saveerr, result);
         } else {
+          self.emit('mongolastic::saveHandler:error', err, options.doc);
           async.eachSeries(model.saveHandlers, asyncHandler, function(cleanuperr) {
             callback(cleanuperr, result);
           });
         }
       });
     } else {
+      self.emit('mongolastic::saveHandler:none', saveerr, options.doc);
       callback(saveerr, result);
     }
   });
