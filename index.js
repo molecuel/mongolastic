@@ -327,15 +327,16 @@ mongolastic.prototype.renderMapping = function(model, callback) {
   */
 mongolastic.prototype.defaultSaveHandler = function(err, result, options, callback) {
   var elastic = getInstance();
-  if(err && options.isNew) {
+  if(err && options.isNew && options.doc) {
     // delete document from eleasticsearch
-    elastic.delete(options.model.modelName, options.doc.id, function(elerr) {
-      if(elerr) {
-        callback(elerr);
-      } else {
+    var docid = options.doc._id;
+    if(docid) {
+      elastic.delete(options.modelName, docid, function() {
         callback();
-      }
-    });
+      });
+    } else {
+      callback();
+    }
   } else {
     callback();
   }
@@ -414,6 +415,7 @@ mongolastic.prototype.save = function(document, callback) {
   var options = {
     isNew: document.isNew,
     model: document.constructor,
+    modelName: document.constructor.modelName,
     doc: document
   };
 
