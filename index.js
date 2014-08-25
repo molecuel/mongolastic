@@ -80,7 +80,7 @@ mongolastic.prototype.populate = function populate(doc, schema, callback) {
   var elastic = getInstance();
 
   function populateReferences(options, currentpath, callback) {
-    if(options.ref) {
+    if(options && options.ref) {
       if(options.elastic && options.elastic.avoidpop ) {
         callback();
       } else {
