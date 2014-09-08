@@ -563,7 +563,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
         bulk.push(action);
         bulk.push(doc);
       } else {
-        console.err('error populate doc ' + doc._id + ' ' + err);
+        console.error('error populate doc ' + doc._id + ' ' + err);
         if(err) {
           errcount = errcount +1;
         } else {
@@ -574,7 +574,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
       if(step >= size) {
         elastic.bulk(bulk, function(err) {
           if(err) {
-            console.err(err);
+            console.error(err);
           }
           bulk = [];
           step = 0;
@@ -589,7 +589,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   stream.on('end', function() {
     elastic.bulk(bulk, function(err) {
       if(err) {
-        console.err(err);
+        console.error(err);
       }
       callback(errcount, donecount);
     });
