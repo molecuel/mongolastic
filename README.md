@@ -17,8 +17,22 @@ It should be registered as plugin and a modelname should be provided.
 var mongolastic = require('mongolastic');
 var mongoose = require('mongoose');
 
+// connect to mongodb
 mongoose.connect('mongodb://localhost/mongolastic');
 
+// connect elasticsearch
+mongolastic.connect('mongolastic', {
+    host: 'localhost:9200',
+    sniffOnStart: true
+}, function(err) {
+    if(err) {
+        console.log(err);
+    } else {
+        console.log('Connected to ElasticSearch');
+    }
+});
+
+// define the costume schema
 var CostumeSchema = mongoose.Schema({
   name: String,
 });
