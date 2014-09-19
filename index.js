@@ -6,6 +6,7 @@ var indices = require('./lib/indices');
 var instance;
 var async = require('async');
 var util = require('util');
+var _ =  require('underscore');
 var EventEmitter = require('events').EventEmitter;
 //var _ = require('underscore');
 
@@ -144,7 +145,11 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
   var populateProperties = function(doc, properties, callback) {
     async.each(Object.keys(properties), function(property, cb) {
       doc.populate(property, function() {
-        cb();
+        if(_.isObject(properties[property])) {
+          populateRecursive(doc, property, properties[property], cb);
+        } else {
+          cb();
+        }
       });
     }, function(err) {
       if(err) {
@@ -178,6 +183,7 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
     if(err) {
       callback(err);
     } else {
+      //console.log("CUR: " + currentpath);
       populateRecursive(doc, currentpath, options, callback);
     }
   });
@@ -543,7 +549,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   var doccount = 0;
   var donecount = 0;
   var bulk = [];
-  var size = 1000;
+  var size = 100;
   var step = 0;
   stream.on('data', function (doc) {
     doccount = doccount +1;
@@ -551,7 +557,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
     elastic.populate(doc, schema, function(err) {
       step = step + 1;
       donecount = donecount +1;
-
+      console.log("POPULATE: " + donecount + " " + doc._id);
       if(!err) {
         var action = {
           index: {
@@ -563,7 +569,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
         bulk.push(action);
         bulk.push(doc);
       } else {
-        console.error('error populate doc ' + doc._id + ' ' + err);
+        console.err('error populate doc ' + doc._id + ' ' + err);
         if(err) {
           errcount = errcount +1;
         } else {
@@ -574,7 +580,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
       if(step >= size) {
         elastic.bulk(bulk, function(err) {
           if(err) {
-            console.error(err);
+            console.err(err);
           }
           bulk = [];
           step = 0;
@@ -589,7 +595,7 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   stream.on('end', function() {
     elastic.bulk(bulk, function(err) {
       if(err) {
-        console.error(err);
+        console.log(err);
       }
       callback(errcount, donecount);
     });
