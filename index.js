@@ -144,13 +144,26 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
 
   var populateProperties = function(doc, properties, callback) {
     async.each(Object.keys(properties), function(property, cb) {
-      doc.populate(property, function() {
-        if(_.isObject(properties[property])) {
-          populateRecursive(doc, property, properties[property], cb);
-        } else {
+      var conf = properties[property];
+      if(_.isObject(conf)) {
+        var fields = conf.fields || {};
+        doc.populate(property, fields, function() {
+          if(conf.docs) {
+            populateRecursive(doc, property, conf.docs, cb);
+          } else {
+            cb();
+          }
+        });
+        /*
+        var fields = conf.fields || {};
+
+        doc.populate(property, {}, function() {
           cb();
-        }
-      });
+        });
+        **/
+      } else {
+        doc.populate(property, cb);
+      }
     }, function(err) {
       if(err) {
         return callback(err);
@@ -183,7 +196,6 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
     if(err) {
       callback(err);
     } else {
-      //console.log("CUR: " + currentpath);
       populateRecursive(doc, currentpath, options, callback);
     }
   });
