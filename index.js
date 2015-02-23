@@ -16,6 +16,7 @@ var EventEmitter = require('events').EventEmitter;
 var mongolastic = function() {
   this.connection = null;
   this.prefix = null;
+  this.indexPreprocessors = [];
 };
 
 util.inherits(mongolastic, EventEmitter);
@@ -71,13 +72,22 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
 };
 
 /**
+ * Registers handler for individual populating elements on before es-indexing
+ *
+ * @param  {type} handler description
+ */
+mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreprocessor(handler) {
+  this.indexPreprocessors.push(handler);
+}
+
+/**
  * Populates object references according to their elastic-options. Invoked on pre(save) and sync to enable synchronisation
  * of full object trees to elasticsearch index
  * @param doc
  * @param schema
  * @param callback
  */
-mongolastic.prototype.populate = function populate(doc, schema, callback) {
+mongolastic.prototype.populate = function populate(doc, schema, options, callback) {
   var elastic = getInstance();
 
   function populateReferences(options, currentpath, callback) {
@@ -214,7 +224,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
 
     schema.pre('save', function(next, done) {
       var self = this;
-      elastic.populate(self, schema, function(err) {
+      elastic.populate(self, schema, options, function(err) {
         if(!err) {
           elastic.index(options.modelname, self, function(err) {
             if(!err) {
@@ -484,21 +494,25 @@ mongolastic.prototype.save = function(document, callback) {
  * @param entry
  * @param callback
  */
-mongolastic.prototype.index = function(modelname, entry, callback) {
+mongolastic.prototype.index = function(modelname, doc, callback) {
   var elastic = getInstance();
 
-  var myid;
-  if(entry && entry._id) {
-    myid = entry._id.toString();
-  }
-
-  elastic.connection.index({
-    index: elastic.getIndexName(modelname),
-    type: modelname,
-    id: myid,
-    body: entry,
-    refresh: true
-  }, callback);
+  var entry = doc.toObject();
+  async.each(elastic.indexPreprocessors, function(handler, cb) {
+    handler(modelname, entry, cb);
+  }, function(err) {
+    var myid;
+    if(entry && entry._id) {
+      myid = entry._id.toString();
+    }
+    elastic.connection.index({
+      index: elastic.getIndexName(modelname),
+      type: modelname,
+      id: myid,
+      body: entry,
+      refresh: true
+    }, callback);
+  });
 };
 
 /**
