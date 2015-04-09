@@ -87,7 +87,7 @@ mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreproce
  * @param schema
  * @param callback
  */
-mongolastic.prototype.populate = function populate(doc, schema, callback) {
+mongolastic.prototype.populate = function populate(doc, schema, options, callback) {
   var elastic = getInstance();
 
   function populateReferences(options, currentpath, callback) {
