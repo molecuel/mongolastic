@@ -78,7 +78,7 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
  */
 mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreprocessor(handler) {
   this.indexPreprocessors.push(handler);
-}
+};
 
 /**
  * Populates object references according to their elastic-options. Invoked on pre(save) and sync to enable synchronisation
@@ -500,7 +500,7 @@ mongolastic.prototype.index = function(modelname, doc, callback) {
   var entry = doc.toObject();
   async.each(elastic.indexPreprocessors, function(handler, cb) {
     handler(modelname, entry, cb);
-  }, function(err) {
+  }, function() {
     var myid;
     if(entry && entry._id) {
       myid = entry._id.toString();
@@ -580,10 +580,10 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
   stream.on('data', function (doc) {
     doccount = doccount +1;
     stream.pause();
-    elastic.populate(doc, schema, function(err) {
+    elastic.populate(doc, schema, null, function(err) {
       step = step + 1;
       donecount = donecount +1;
-      console.log("POPULATE: " + donecount + " " + doc._id);
+      console.log('POPULATE: ' + donecount + ' ' + doc._id);
       if(!err) {
         var action = {
           index: {
