@@ -266,6 +266,9 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
       return elastic.sync(this, options.modelname, callback);
     };
 
+    schema.statics.syncById = function (id, callback) {
+      return elastic.syncById(this, options.modelname, id, callback);
+    };
   } else {
     console.error('missing modelname');
   }
@@ -627,6 +630,36 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
     });
   });
 };
+
+/**
+ * SyncById function for database model
+ * @param model
+ * @param modelname
+ * @param callback
+ */
+mongolastic.prototype.syncById = function syncById(model, modelname, id, callback) {
+  var elastic = getInstance();
+  var find = model.findById(id, function(err, doc) {
+    if(doc && !err) {
+      elastic.populate(doc, schema, null, function(poperr) {
+        if(!poperr) {
+          elastic.index(modelname, doc, function(inerr) {
+            if(!inerr) {
+              callback();
+            } else {
+              callback(inerr);
+            }
+          });
+        } else {
+          callback(poperr);
+         }
+      });
+    } else {
+      callback(err);
+    }
+  });
+};
+
 
 /**
  * Delete whole index
