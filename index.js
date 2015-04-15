@@ -639,11 +639,12 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
  */
 mongolastic.prototype.syncById = function syncById(model, modelname, id, callback) {
   var elastic = getInstance();
-  var find = model.findById(id, function(err, doc) {
+  var schema = model.schema;
+  model.findById(id, function(err, doc) {
     if(doc && !err) {
-      elastic.populate(doc, schema, null, function(poperr) {
+      elastic.populate(doc, modelname, null, function(poperr) {
         if(!poperr) {
-          elastic.index(modelname, doc, function(inerr) {
+          elastic.index(modelname, schema, function(inerr) {
             if(!inerr) {
               callback();
             } else {
@@ -652,7 +653,7 @@ mongolastic.prototype.syncById = function syncById(model, modelname, id, callbac
           });
         } else {
           callback(poperr);
-         }
+        }
       });
     } else {
       callback(err);
