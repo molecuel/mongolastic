@@ -8,7 +8,6 @@ var async = require('async');
 var util = require('util');
 var _ =  require('underscore');
 var EventEmitter = require('events').EventEmitter;
-//var _ = require('underscore');
 
 /**
  * Module definition
@@ -500,7 +499,7 @@ mongolastic.prototype.save = function(document, callback) {
 mongolastic.prototype.index = function(modelname, doc, callback) {
   var elastic = getInstance();
 
-  var entry = doc.toObject();
+  var entry = doc;
   async.each(elastic.indexPreprocessors, function(handler, cb) {
     handler(modelname, entry, cb);
   }, function() {
@@ -640,11 +639,11 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
 mongolastic.prototype.syncById = function syncById(model, modelname, id, callback) {
   var elastic = getInstance();
   var schema = model.schema;
-  model.findById(id, function(err, doc) {
+  var find = model.findById(id, function(err, doc) {
     if(doc && !err) {
-      elastic.populate(doc, modelname, null, function(poperr) {
+      elastic.populate(doc, schema, null, function(poperr) {
         if(!poperr) {
-          elastic.index(modelname, schema, function(inerr) {
+          elastic.index(modelname, doc, function(inerr) {
             if(!inerr) {
               callback();
             } else {
@@ -653,7 +652,7 @@ mongolastic.prototype.syncById = function syncById(model, modelname, id, callbac
           });
         } else {
           callback(poperr);
-        }
+         }
       });
     } else {
       callback(err);
