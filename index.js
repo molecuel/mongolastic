@@ -689,4 +689,10 @@ mongolastic.prototype.getIndexName = function(name) {
 };
 
 
-module.exports = getInstance();
+//application wide singleton
+global.singletons = global.singletons || {};
+if (global.singletons['mongolastic']) {
+  module.exports = global.singletons['mongolastic'];
+} else {
+  global.singletons['mongolastic'] = module.exports = getInstance();
+}
