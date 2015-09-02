@@ -6,7 +6,7 @@ var indices = require('./lib/indices');
 var instance;
 var async = require('async');
 var util = require('util');
-var _ =  require('underscore');
+var _ = require('lodash');
 var EventEmitter = require('events').EventEmitter;
 
 /**
@@ -280,69 +280,68 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
  * @param callback
  */
 mongolastic.prototype.renderMapping = function(model, callback) {
-  var deepen = function deepen(o) {
-    var oo = {}, t, orig_parts, parts, part;
-    for (var k in o) {
-      if (o.hasOwnProperty(k)) {
-        t = oo;
-        orig_parts = k.split('.');
-        var key = orig_parts.pop();
-        parts = [];
-        // if it's nested the schema needs the properties object added for every second element
-        for (var i = 0; i < orig_parts.length; i ++) {
-          parts.push(orig_parts[i]);
-          parts.push('properties');
-        }
-        while (parts.length) {
-          part = parts.shift();
-          var mypart = t[part] = t[part] || {};
-          t = mypart;
-        }
-        t[key] = o[k];
-      }
-    }
-    return oo;
-  };
 
   var mapping = {};
-  mapping[model.modelName] = {
-    properties: {
 
-    }
-  };
+  // Get paths with elasticsearch mapping set in schema
+  // and merge all their mappings
+  var pathMappings = {};
 
-  async.series([
-    function(callback) {
-      async.each(Object.keys(model.schema.paths), function(currentkey, cb) {
-        var currentPath = model.schema.paths[currentkey];
-        if(currentPath && currentPath.options && currentPath.options.elastic && currentPath.options.elastic.mapping) {
-          mapping[model.modelName].properties[currentkey] = currentPath.options.elastic.mapping;
-          cb();
-        } else {
-          cb();
-        }
-      }, function(err) {
-        callback(err);
-      });
-    },
-    function(callback) {
-      if(model.elastic && model.elastic.mapping) {
-        async.each(Object.keys(model.elastic.mapping), function(currentkey, cb) {
-          mapping[model.modelName].properties[currentkey] = model.elastic.mapping[currentkey];
-          cb();
-        }, function(err) {
-          callback(err);
-        });
-      } else {
-        callback();
-      }
+  _.forOwn(model.schema.paths, function(value, key) {
+
+    if(_.has(value, 'options.elastic.mapping')) {
+      pathMappings[key] = value.options.elastic.mapping;
     }
-  ],function(err) {
-    var map = deepen(mapping[model.modelName].properties);
-    mapping[model.modelName].properties = map;
-    callback(err, mapping);
   });
+
+  mapping = _.merge(mapping, pathMappings);
+
+
+  // Merge "global" mapping that has been set on the model directly
+  if (_.has(model, 'elastic.mapping')) {
+    mapping = _.merge(mapping, model.elastic.mapping);
+  }
+
+
+  // Elasticsearch requires all nested properties "sub.subSub"
+  // to be wrapped as {sub: {properties: {subSub: {properties: ...}}}}
+  var nestedMapping = {};
+
+  _.forOwn(mapping, function(value, key) {
+
+    var nestedKeys = key.split('.');
+    var nestedValue = value;
+
+    // Top level
+    nestedValue = wrapValue(nestedKeys.pop(), nestedValue);
+
+    // Deeper levels need to be wrapped as "properties"
+    _.forEachRight(nestedKeys, function(nestedKey) {
+
+      nestedValue = wrapValue(nestedKey, {
+        properties: nestedValue
+      });
+    });
+
+    nestedMapping = _.merge(nestedMapping, nestedValue);
+  });
+
+
+  // Wrap the result so that it has the form
+  // { "theModelName": { properties: ...}}
+  var result = {};
+  result[model.modelName] = {properties: nestedMapping};
+
+  return callback(null, result);
 };
+
+function wrapValue(key, value) {
+
+  var result = {};
+  result[key] = value;
+
+  return result;
+}
 
 
  /**
