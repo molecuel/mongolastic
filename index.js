@@ -3,7 +3,6 @@
  */
 var elasticsearch = require('elasticsearch');
 var indices = require('./lib/indices');
-var instance;
 var async = require('async');
 var util = require('util');
 var _ = require('lodash');
@@ -12,10 +11,10 @@ var EventEmitter = require('events').EventEmitter;
 /**
  * Module definition
  */
-var mongolastic = function() {
-  this.connection = null;
-  this.prefix = null;
-  this.indexPreprocessors = [];
+var mongolastic = function () {
+    this.connection = null;
+    this.prefix = null;
+    this.indexPreprocessors = [];
 };
 
 util.inherits(mongolastic, EventEmitter);
@@ -23,51 +22,48 @@ util.inherits(mongolastic, EventEmitter);
 /////////////////////
 // singleton stuff
 ////////////////////
-instance = null;
+var instance = null;
 
-var getInstance = function(){
-  return instance || (instance = new mongolastic());
+var getInstance = function () {
+    return instance || (instance = new mongolastic());
 };
 
 /**
  * Connects and tests the connection with a ping
  * @param prefix
  * @param options
- * @param callback
+ * @param {function} callback
  */
-mongolastic.prototype.connect = function(prefix, options, callback) {
-  var self = this;
-  // check if the prefix has been defined
-  if(!this.prefix) {
-    this.prefix = prefix;
-  }
+mongolastic.prototype.connect = function (prefix, options, callback) {
 
-  // check if the connection has been defined
-  if(!this.connection) {
-    /*if(!options) {
-      options = {};
+    var self = this;
+
+    // check if the prefix has been defined
+    if (!this.prefix) {
+        this.prefix = prefix;
     }
-    options.log = {
-      level: 'trace'
-    }*/
-    this.connection = new elasticsearch.Client(options);
-  }
 
-  if(!this.indices) {
-    this.indices = new indices(this);
-  }
-
-  // check the connection with a ping to the cluster and reply the connection
-  this.connection.ping({
-    requestTimeout: 1000,
-    hello: 'elasticsearch!'
-  },function(err) {
-    if(err) {
-      callback(err);
-    } else {
-      callback(null, self.connection);
+    // check if the connection has been defined
+    if (!this.connection) {
+        this.connection = new elasticsearch.Client(options);
     }
-  });
+
+    if (!this.indices) {
+        this.indices = new indices(this);
+    }
+
+    // check the connection with a ping to the cluster and reply the connection
+    this.connection.ping({
+        requestTimeout: 1000,
+        hello: 'elasticsearch!'
+    }, function (err) {
+
+        if (err) {
+            return callback(err);
+        }
+
+        return callback(null, self.connection);
+    });
 };
 
 /**
@@ -76,7 +72,7 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
  * @param  {type} handler description
  */
 mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreprocessor(handler) {
-  this.indexPreprocessors.push(handler);
+    this.indexPreprocessors.push(handler);
 };
 
 /**
@@ -218,7 +214,7 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
  * @param  {object} options Additional options
  */
 mongolastic.prototype.plugin = function plugin(schema, options) {
-  if(options.modelname) {
+  if(options.modelName) {
     var elastic = getInstance();
 
     schema.pre('save', function(next, done) {
@@ -226,7 +222,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
       elastic.populate(self, schema, options, function(err) {
         if(!err) {
           var entry = self.toObject();
-          elastic.index(options.modelname, entry, function(err) {
+          elastic.index(options.modelName, entry, function(err) {
             if(!err) {
               next();
             } else {
@@ -240,7 +236,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     });
 
     schema.post('remove', function() {
-      elastic.delete(options.modelname, this.id, function(err) {
+      elastic.delete(options.modelName, this.id, function(err) {
         if(err) {
           console.error(err);
         }
@@ -252,7 +248,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
      * @param cb
      */
     schema.methods.search = function(query, cb) {
-      query.index = elastic.getIndexName(options.modelname);
+      query.index = elastic.getIndexName(options.modelName);
       elastic.search(query, cb);
     };
 
@@ -263,14 +259,14 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     schema.statics.search = elastic.search;
 
     schema.statics.sync = function (callback) {
-      return elastic.sync(this, options.modelname, callback);
+      return elastic.sync(this, options.modelName, callback);
     };
 
     schema.statics.syncById = function (id, callback) {
-      return elastic.syncById(this, options.modelname, id, callback);
+      return elastic.syncById(this, options.modelName, id, callback);
     };
   } else {
-    console.error('missing modelname');
+    console.error('missing modelName');
   }
 };
 
@@ -374,11 +370,20 @@ mongolastic.prototype.defaultSaveHandler = function(err, result, options, callba
 
 /**
  * When registering a new mongoose model
- * @param model
- * @param callback
+ * @param {object} model
+ * @param {object} [options]
+ * @param {function} callback
  */
-mongolastic.prototype.registerModel = function(model, callback) {
+mongolastic.prototype.registerModel = function (model, options, callback) {
   var elastic = getInstance();
+
+  // Check if options are provided
+  // or if the options argument is actually the callback
+  if (callback === undefined && _.isFunction(options)) {
+    callback = options;
+    options = {};
+  }
+
   /**
   * Change the save function of the model
   * @deprecated Caused mongoose does not support this
@@ -432,7 +437,7 @@ mongolastic.prototype.registerModel = function(model, callback) {
   /**
    * Creates the index for the model with the correct mapping
    */
-  elastic.indices.checkCreateByModel(model,
+  elastic.indices.checkCreateByModel(model, options,
     function(err) {
       callback(err, model);
     }
@@ -492,130 +497,130 @@ mongolastic.prototype.save = function(document, callback) {
 
 /**
  * Index data
- * @param modelname
- * @param entry
- * @param callback
+ * @param {string} modelName
+ * @param {object} doc
+ * @param {function} callback
  */
-mongolastic.prototype.index = function(modelname, doc, callback) {
-  var elastic = getInstance();
-  var entry = doc;
-  async.each(elastic.indexPreprocessors, function(handler, cb) {
-    handler(modelname, entry, cb);
-  }, function() {
-    var myid;
-    if(entry && entry._id) {
-      myid = entry._id.toString();
-    }
-    elastic.connection.index({
-      index: elastic.getIndexName(modelname),
-      type: modelname,
-      id: myid,
-      body: entry,
-      refresh: true
-    }, callback);
-  });
+mongolastic.prototype.index = function (modelName, doc, callback) {
+
+    var elastic = getInstance();
+    var entry = doc;
+
+    async.each(elastic.indexPreprocessors, function (handler, cb) {
+        handler(modelName, entry, cb);
+    }, function () {
+        var myid;
+        if (entry && entry._id) {
+            myid = entry._id.toString();
+        }
+        elastic.connection.index({
+            index: elastic.getIndexName(modelName),
+            type: modelName,
+            id: myid,
+            body: entry,
+            refresh: true
+        }, callback);
+    });
 };
 
 /**
  * Index data
- * @param modelname
- * @param entry
- * @param callback
+ * @param {object} body
+ * @param {function} callback
  */
-mongolastic.prototype.bulk = function(body, callback) {
-  var elastic = getInstance();
-
-  elastic.connection.bulk({
-    //index: elastic.getIndexName(modelname),
-    //type: modelname,
-    body: body,
-    refresh: true
-  }, callback);
+mongolastic.prototype.bulk = function (body, callback) {
+    var elastic = getInstance();
+    elastic.connection.bulk({
+        //index: elastic.getIndexName(modelName),
+        //type: modelName,
+        body: body,
+        refresh: true
+    }, callback);
 };
 
 /**
- * Delete function
- * @param modelname
- * @param entry
- * @param callback
+ * Delete document from elasticsearch index
+ * @param {string} modelName
+ * @param {string} id
+ * @param {function} callback
  */
-mongolastic.prototype.delete = function(modelname, id, callback) {
-  var elastic = getInstance();
-  elastic.connection.delete({
-    index: elastic.getIndexName(modelname),
-    type: modelname,
-    id: id
-  }, callback);
+mongolastic.prototype.delete = function (modelName, id, callback) {
+    var elastic = getInstance();
+    elastic.connection.delete({
+        index: elastic.getIndexName(modelName),
+        type: modelName,
+        id: id
+    }, callback);
 };
 
 /**
- * Search function
- * @param query
- * @param callback
+ * Perform search on elasticsearch index
+ * @param {object|string} query
+ * @param {function} callback
  */
-mongolastic.prototype.search = function(query, callback) {
-  var elastic = getInstance();
-  if(!query.index) {
-    query.index = elastic.prefix + '-*';
-  }
-  elastic.connection.search(query, callback);
+mongolastic.prototype.search = function (query, callback) {
+    var elastic = getInstance();
+    if (!query.index) {
+        query.index = elastic.prefix + '-*';
+    }
+    elastic.connection.search(query, callback);
 };
 
 /**
  * Sync function for database model
- * @param model
- * @param modelname
- * @param callback
+ * @param {object} model
+ * @param {string} modelName
+ * @param {function} callback
  */
-mongolastic.prototype.sync = function sync(model, modelname, callback) {
-  var elastic = getInstance();
-  var stream = model.find().stream();
-  var schema = model.schema;
-  var errcount = 0;
-  var rescount = 0;
-  var doccount = 0;
-  var donecount = 0;
-  var bulk = [];
-  var size = 100;
-  var step = 0;
-  stream.on('data', function (doc) {
-    doccount = doccount +1;
-    stream.pause();
-    elastic.populate(doc, schema, null, function(err) {
-      step = step + 1;
-      donecount = donecount +1;
-      if(!err) {
-        var action = {
-          index: {
-            '_index': elastic.getIndexName(modelname),
-            '_type': modelname,
-            '_id': doc._id.toString()
-          }
-        };
-        bulk.push(action);
-        bulk.push(doc);
-      } else {
-        if(err) {
-          errcount = errcount +1;
-        } else {
-          rescount = rescount +1;
-        }
-      }
+mongolastic.prototype.sync = function sync(model, modelName, callback) {
+    var elastic = getInstance();
+    var stream = model.find().stream();
+    var schema = model.schema;
+    var errcount = 0;
+    var rescount = 0;
+    var doccount = 0;
+    var donecount = 0;
+    var bulk = [];
+    var size = 100;
+    var step = 0;
+    stream.on('data', function (doc) {
+        doccount = doccount + 1;
+        stream.pause();
+        elastic.populate(doc, schema, null, function (err) {
+            step = step + 1;
+            donecount = donecount + 1;
+            if (!err) {
+                var action = {
+                    index: {
+                        '_index': elastic.getIndexName(modelName),
+                        '_type': modelName,
+                        '_id': doc._id.toString()
+                    }
+                };
+                bulk.push(action);
+                bulk.push(doc);
+            } else {
+                if (err) {
+                    errcount = errcount + 1;
+                } else {
+                    rescount = rescount + 1;
+                }
+            }
 
-      if(step >= size) {
-        elastic.bulk(bulk, function(err) {
-          if(err) {
-            console.err(err);
-          }
-          bulk = [];
-          step = 0;
-          stream.resume();
+            if (step >= size) {
+                elastic.bulk(bulk, function (err) {
+                    if (err) {
+                        console.err(err);
+                    }
+                    bulk = [];
+                    step = 0;
+                    stream.resume();
+                });
+            } else {
+                stream.resume();
+            }
         });
-      } else {
-        stream.resume();
-      }
     });
-  });
 
   stream.on('end', function() {
     elastic.bulk(bulk, function(err) {
@@ -629,68 +634,68 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
 
 /**
  * SyncById function for database model
- * @param model
- * @param modelname
- * @param callback
+ * @param {object} model
+ * @param {string} modelName
+ * @param {function} callback
  */
-mongolastic.prototype.syncById = function syncById(model, modelname, id, callback) {
-  var elastic = getInstance();
-  var schema = model.schema;
-  model.findById(id, function(err, doc) {
-    if(doc && !err) {
-      elastic.populate(doc, schema, null, function(poperr) {
-        if(!poperr) {
-          var entry = doc.toObject();
-          elastic.index(modelname, entry, function(inerr) {
-            if(!inerr) {
-              callback();
-            } else {
-              callback(inerr);
-            }
-          });
+mongolastic.prototype.syncById = function syncById(model, modelName, id, callback) {
+    var elastic = getInstance();
+    var schema = model.schema;
+    model.findById(id, function (err, doc) {
+        if (doc && !err) {
+            elastic.populate(doc, schema, null, function (poperr) {
+                if (!poperr) {
+                    var entry = doc.toObject();
+                    elastic.index(modelName, entry, function (inerr) {
+                        if (!inerr) {
+                            callback();
+                        } else {
+                            callback(inerr);
+                        }
+                    });
+                } else {
+                    callback(poperr);
+                }
+            });
         } else {
-          callback(poperr);
+            callback(err);
         }
-      });
-    } else {
-      callback(err);
-    }
-  });
+    });
 };
 
 
 /**
  * Delete whole index
- * @param modelname
- * @param callback
+ * @param {string} modelName
+ * @param {function} callback
  */
-mongolastic.prototype.deleteIndex = function deleteIndex(modelname, callback) {
-  this.connection.indices.delete({index: this.getIndexName(modelname)}, callback);
+mongolastic.prototype.deleteIndex = function deleteIndex(modelName, callback) {
+    this.connection.indices.delete({index: this.getIndexName(modelName)}, callback);
 };
 
 /**
- * Helper for hamornising namespaces
- * @param modelname
+ * Get elasticsearch index name for model
+ * @param {string} modelName
  * @returns {string}
  */
-mongolastic.prototype.getIndexName = function(name) {
-  var mlelast = getInstance();
-  if(mlelast.prefix) {
-    if(name.indexOf(mlelast.prefix+'-') === 0) {
-      return name.toLowerCase();
+mongolastic.prototype.getIndexName = function (modelName) {
+    var elastic = getInstance();
+    if (elastic.prefix) {
+        if (modelName.indexOf(elastic.prefix + '-') === 0) {
+            return modelName.toLowerCase();
+        } else {
+            return elastic.prefix + '-' + modelName.toLowerCase();
+        }
     } else {
-      return mlelast.prefix + '-' + name.toLowerCase();
+        return modelName.toLowerCase();
     }
-  } else {
-    return name.toLowerCase();
-  }
 };
 
 
 //application wide singleton
-global.singletons = global.singletons || {};
+global.singletons = global.singletons || {};
 if (global.singletons['mongolastic']) {
-  module.exports = global.singletons['mongolastic'];
+    module.exports = global.singletons['mongolastic'];
 } else {
-  global.singletons['mongolastic'] = module.exports = getInstance();
+    global.singletons['mongolastic'] = module.exports = getInstance();
 }

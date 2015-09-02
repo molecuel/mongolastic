@@ -17,7 +17,7 @@ describe('mongolastic', function(){
       color: {type: String},
       integer: {type: Number, elastic: {mapping: {type: 'integer'}}}
     });
-    CostumeSchema.plugin(mongolastic.plugin, {modelname: 'costume'});
+    CostumeSchema.plugin(mongolastic.plugin, {modelName: 'costume'});
     costume = mongoose.model('costume', CostumeSchema);
 
     CatSchema = mongoose.Schema({
@@ -32,7 +32,7 @@ describe('mongolastic', function(){
         }
       }
     });
-    CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
+    CatSchema.plugin(mongolastic.plugin, {modelName: 'cat'});
     cat = mongoose.model('cat', CatSchema);
 
     cat.elastic = {
@@ -46,14 +46,14 @@ describe('mongolastic', function(){
       date: {type: Date, default: Date.now},
       costume: {type: mongoose.Schema.ObjectId, ref: 'costume'}
     });
-    DogSchema.plugin(mongolastic.plugin, {modelname: 'dog'});
+    DogSchema.plugin(mongolastic.plugin, {modelName: 'dog'});
     dog = mongoose.model('dog', DogSchema);
 
     FailSchema = mongoose.Schema({
       name: String,
       keyword: {type: String, required: true}
     });
-    FailSchema.plugin(mongolastic.plugin, {modelname: 'fail'});
+    FailSchema.plugin(mongolastic.plugin, {modelName: 'fail'});
     myFail = mongoose.model('fail', FailSchema);
 
   });
