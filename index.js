@@ -68,16 +68,6 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
 
 
 /**
- * Registers handler for individual populating elements on before es-indexing
- * @param  {type} handler description
- */
-
-mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreprocessor(handler) {
-  this.indexPreprocessors.push(handler);
-};
-
-
-/**
  * Populates object references according to their elastic-options. Invoked on pre(save) and sync to enable synchronisation
  * of full object trees to elasticsearch index
  * @param {object} doc
@@ -90,12 +80,12 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
 
   function populateReferences(options, path, callback) {
 
-    // TODO Should this return error or just "silently" fail?
+    // TODO Should this return error or just 'silently' fail?
     if(!(options && options.ref)) {
       return callback(null, null);
     }
 
-    // TODO Should this return error or just "silently" fail?
+    // TODO Should this return error or just 'silently' fail?
     if(_.has(options, 'elastic.avoidpop')) {
       return callback(null, null);
     }
@@ -169,7 +159,7 @@ mongolastic.prototype.populateSubdoc = function populateSubDoc(doc, schema, path
 
   var populateRecursive = function(doc, path, options, callback) {
 
-    // TODO Should this return error or just "silently" fail?
+    // TODO Should this return error or just 'silently' fail?
     if(!(doc.get(path) && options)) {
       return callback(null, null);
     }
@@ -194,69 +184,72 @@ mongolastic.prototype.populateSubdoc = function populateSubDoc(doc, schema, path
 
 
 /**
- * plugin - Mongoose model plugin
- *
- * @param  {object} schema  The mongoose schema
- * @param  {object} options Additional options
+ * Mongoose model plugin
+ * @param {object} schema - The mongoose schema
+ * @param {object} options - Additional options
  */
 mongolastic.prototype.plugin = function plugin(schema, options) {
-  if(options.modelName) {
-    var elastic = getInstance();
+  var elastic = getInstance();
 
-    schema.pre('save', function(next, done) {
-      var self = this;
-      elastic.populate(self, schema, options, function(err) {
-        if(!err) {
+  if(!options.modelName) {
+    throw new Error('Missing model name');
+  }
 
-          elastic.index(options.modelName, self, function(err) {
-            if(!err) {
-              next();
-            } else {
-              done(new Error('Could not save in Elasticsearch index: ' + err));
-            }
-          });
-        } else {
-          done(new Error('Could not save in Elasticsearch: ' + err));
-        }
-      });
-    });
+  // Register save hook
+  // Documents will be indexed AFTER they have been stored
+  // in MongoDB. This ensures that DB inserts are fast and won't fail
+  // in case that the search index might be unavailable.
+  schema.post('save', function(doc) {
 
-    schema.post('remove', function() {
-      elastic.delete(options.modelName, this.id, function(err) {
+    elastic.populate(doc, schema, options, function(err) {
+      if(err) {
+        // TODO: Emit error event
+        console.error(err);
+        return;
+      }
+
+      elastic.index(options.modelName, doc, function(err) {
         if(err) {
-          // TODO: Error handling feels a bit shaky here?
+          // TODO: Emit error event
           console.error(err);
         }
       });
     });
+  });
 
-    /**
-     * Search on current model with predefined index
-     * @param query
-     * @param cb
-     */
-    schema.methods.search = function(query, cb) {
-      query.index = elastic.getIndexName(options.modelName);
-      elastic.search(query, cb);
-    };
+  // Register remove hook
+  schema.post('remove', function() {
+    elastic.delete(options.modelName, this.id, function(err) {
+      if(err) {
+        // TODO: Emit error event
+        console.error(err);
+      }
+    });
+  });
 
-    /**
-     * Search with specifying a model or index
-     * @type {search|Function|string|api.indices.stats.params.search|Boolean|commandObject.search|*}
-     */
-    schema.statics.search = elastic.search;
+  /**
+   * Search on current model with predefined index
+   * @param query
+   * @param cb
+   */
+  schema.methods.search = function(query, cb) {
+    query.index = elastic.getIndexName(options.modelName);
+    elastic.search(query, cb);
+  };
 
-    schema.statics.sync = function(callback) {
-      return elastic.sync(this, options.modelName, callback);
-    };
+  /**
+   * Search with specifying a model or index
+   * @type {search|Function|string|api.indices.stats.params.search|Boolean|commandObject.search|*}
+   */
+  schema.statics.search = elastic.search;
 
-    schema.statics.syncById = function(id, callback) {
-      return elastic.syncById(this, options.modelName, id, callback);
-    };
-  } else {
-    // TODO: Error handling feels a bit shaky here?
-    console.error('missing modelName');
-  }
+  schema.statics.sync = function(callback) {
+    return elastic.sync(this, options.modelName, callback);
+  };
+
+  schema.statics.syncById = function(id, callback) {
+    return elastic.syncById(this, options.modelName, id, callback);
+  };
 };
 
 /**
@@ -282,13 +275,13 @@ mongolastic.prototype.renderMapping = function(model, callback) {
   mapping = _.merge(mapping, pathMappings);
 
 
-  // Merge "global" mapping that has been set on the model directly
+  // Merge 'global' mapping that has been set on the model directly
   if(_.has(model, 'elastic.mapping')) {
     mapping = _.merge(mapping, model.elastic.mapping);
   }
 
 
-  // Elasticsearch requires all nested properties "sub.subSub"
+  // Elasticsearch requires all nested properties 'sub.subSub'
   // to be wrapped as {sub: {properties: {subSub: {properties: ...}}}}
   var nestedMapping = {};
 
@@ -300,7 +293,7 @@ mongolastic.prototype.renderMapping = function(model, callback) {
     // Top level
     nestedValue = wrapValue(nestedKeys.pop(), nestedValue);
 
-    // Deeper levels need to be wrapped as "properties"
+    // Deeper levels need to be wrapped as 'properties'
     _.forEachRight(nestedKeys, function(nestedKey) {
 
       nestedValue = wrapValue(nestedKey, {
@@ -313,7 +306,7 @@ mongolastic.prototype.renderMapping = function(model, callback) {
 
 
   // Wrap the result so that it has the form
-  // { "theModelName": { properties: ...}}
+  // { 'theModelName': { properties: ...}}
   var result = {};
   result[model.modelName] = {properties: nestedMapping};
 
@@ -328,34 +321,6 @@ function wrapValue(key, value) {
   return result;
 }
 
-
-/**
- * The default save handler
- *
- * @todo This is currently not working correctly. You have to implement this
- * functionality in your project to be sure it is executed on errors
- *
- * @param {object} err The error object
- * @param {object} result The database result
- * @param {object} options Additional options
- * @param {function} callback The callback function
- */
-mongolastic.prototype.defaultSaveHandler = function(err, result, options, callback) {
-  var elastic = getInstance();
-  if(err && options.isNew && options.doc) {
-    // delete document from elasticsearch
-    var docid = options.doc._id;
-    if(docid) {
-      elastic.delete(options.modelName, docid, function() {
-        return callback();
-      });
-    } else {
-      return callback();
-    }
-  } else {
-    return callback();
-  }
-};
 
 /**
  * When registering a new mongoose model
@@ -373,55 +338,6 @@ mongolastic.prototype.registerModel = function(model, options, callback) {
     options = {};
   }
 
-  /**
-   * Change the save function of the model
-   * @deprecated Caused mongoose does not support this
-   **/
-    //model.prototype.saveOrig = model.prototype.save;
-
-  model.registerSaveHandler = function(saveHandler) {
-    model.saveHandlers.push(saveHandler);
-  };
-
-  model.saveHandlers = [];
-
-  // This iss currently disabled caused by the handling of mongoose and has to
-  // be implemented by a project specific library from you
-  model.registerSaveHandler(elastic.defaultSaveHandler);
-
-  /**
-   * save - Overwrites the save function of the model
-   *
-   * @todo this is not working correctly cause mongoose seems to ignore it if a
-   * validation error occurs
-   *
-   * @param  {function} cb the callback function
-   * @deprecated as mongoose does not support this
-   */
-  /*
-   model.prototype.save = function save(cb) {
-   var self = this;
-
-   // add some options
-   var options = {
-   isNew: self.isNew
-   };
-
-   // call the original save function
-   model.prototype.saveOrig.call(this, function(err, result) {
-   async.eachSeries(model.saveHandlers, function(item, callback) {
-   // check if the saveHandler item is a function
-   if('function' === typeof item) {
-   item(err, result, options, callback);
-   } else {
-   callback();
-   }
-   }, function(err) {
-   cb(err, result);
-   });
-   });
-   };*/
-
 
   /**
    * Creates the index for the model with the correct mapping
@@ -431,58 +347,6 @@ mongolastic.prototype.registerModel = function(model, options, callback) {
       return callback(err, model);
     }
   );
-};
-
-mongolastic.prototype.save = function(document, callback) {
-  var self = this;
-
-  var options = {
-    isNew: document.isNew,
-    model: document.constructor,
-    modelName: document.constructor.modelName,
-    doc: document
-  };
-
-  var model = options.model;
-
-  /**
-   * Original save function of mongoose
-   */
-  document.save(function(saveErr, result) {
-    if(model.saveHandlers) {
-
-      /**
-       * asyncHandler - Async serial iterator over the registered save handlers
-       *
-       * @param  {function} item saveHandler function
-       * @param  {function} cb   callback function of async
-       * @callback
-       */
-      var asyncHandler = function asyncHandler(item, cb) {
-        // check if the saveHandler item is a function
-        if(_.isFunction(item)) {
-          item(saveErr, result, options, cb);
-        } else {
-          // TODO: Should this return an error instead?
-          return cb(null, null);
-        }
-      };
-      async.eachSeries(model.saveHandlers, asyncHandler, function(err) {
-        if(!err) {
-          self.emit('mongolastic::saveHandler:success', result);
-          return callback(saveErr, result);
-        } else {
-          self.emit('mongolastic::saveHandler:error', err, options.doc);
-          async.eachSeries(model.saveHandlers, asyncHandler, function(cleanupErr) {
-            return callback(cleanupErr, result);
-          });
-        }
-      });
-    } else {
-      self.emit('mongolastic::saveHandler:none', saveErr, options.doc);
-      return callback(saveErr, result);
-    }
-  });
 };
 
 /**
@@ -510,7 +374,7 @@ mongolastic.prototype.index = function(modelName, doc, callback) {
 };
 
 /**
- * Index data
+ * Index data in bulk
  * @param {object} body
  * @param {function} callback
  */
@@ -526,12 +390,18 @@ mongolastic.prototype.bulk = function(body, callback) {
 
 /**
  * Delete document from elasticsearch index
+ * This will NOT remove the mongoose object
  * @param {string} modelName
  * @param {string} id
  * @param {function} callback
  */
 mongolastic.prototype.delete = function(modelName, id, callback) {
   var elastic = getInstance();
+
+  if(!_.isString(id)) {
+    return callback(new Error('Id is not a string'), null);
+  }
+
   elastic.connection.delete({
     index: elastic.getIndexName(modelName),
     type: modelName,
