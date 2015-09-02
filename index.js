@@ -3,7 +3,6 @@
  */
 var elasticsearch = require('elasticsearch');
 var indices = require('./lib/indices');
-var instance;
 var async = require('async');
 var util = require('util');
 var _ = require('lodash');
