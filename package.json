@@ -14,7 +14,7 @@
   "dependencies": {
     "elasticsearch": ">=0.0.1",
     "async": ">=0.0.1",
-    "underscore": ">=0.0.1"
+    "lodash": "^3.10.1"
   },
   "devDependencies": {
     "mocha": "*",
