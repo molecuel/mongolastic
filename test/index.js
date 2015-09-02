@@ -8,7 +8,17 @@ var assert = require('assert'),
 
 describe('mongolastic', function(){
   //mongoose.set('debug', true);
-  var cat, CatSchema, CostumeSchema, costume, DogSchema, dog, FailSchema, myFail;
+  var cat;
+  var CatSchema;
+  var CostumeSchema;
+  var costume;
+  var DogSchema;
+  var dog;
+  var FailSchema;
+  var myFail;
+  var SettingsTestSchema;
+  var settingsTest;
+
   before(function() {
     mongoose.connect('mongodb://localhost/mongolastic');
 
@@ -55,6 +65,13 @@ describe('mongolastic', function(){
     });
     FailSchema.plugin(mongolastic.plugin, {modelName: 'fail'});
     myFail = mongoose.model('fail', FailSchema);
+
+    // Settings test
+    SettingsTestSchema = mongoose.Schema({
+      name: String
+    });
+    SettingsTestSchema.plugin(mongolastic.plugin, {modelName: 'settingsTest'});
+    settingsTest = mongoose.model('settingsTest', SettingsTestSchema);
 
   });
 
@@ -115,6 +132,56 @@ describe('mongolastic', function(){
         response['mongolastic-cat'].should.be.object;
         response['mongolastic-cat'].mappings.should.be.object;
         response['mongolastic-cat'].mappings.cat.should.be.object;
+        done();
+      });
+    });
+
+    it('should create the mapping for the settingsTest model', function(done) {
+
+      var options = {
+        'settings': {
+          'index': {
+            'analysis': {
+              'filter': {
+                'english_stop': {
+                  'type': 'stop',
+                  'stopwords': '_english_'
+                }
+              }
+            }
+          }
+        }
+      };
+
+      mongolastic.registerModel(settingsTest, options, function(err, result) {
+        should.not.exist(err);
+        result.should.be.a.function;
+        done();
+      });
+    });
+
+    it('should return the custom index settings for the settingsTest model', function(done) {
+      mongolastic.indices.getSettings(settingsTest.modelName, function(err, response, status) {
+        should.not.exist(err);
+        assert(status === 200);
+        response['mongolastic-settingstest'].should.be.object;
+        response['mongolastic-settingstest'].settings.should.be.object;
+        response['mongolastic-settingstest'].settings.index.should.be.object;
+        response['mongolastic-settingstest'].settings.index['uuid'].should.be.a.string;
+        response['mongolastic-settingstest'].settings.index['analysis'].should.be.a.object;
+        done();
+      });
+    });
+
+    it('should return default index settings for the cat model', function(done) {
+      mongolastic.indices.getSettings(cat.modelName, function(err, response, status) {
+        should.not.exist(err);
+        assert(status === 200);
+        response['mongolastic-cat'].should.be.object;
+        response['mongolastic-cat'].settings.should.be.object;
+        response['mongolastic-cat'].settings.index.should.be.object;
+        response['mongolastic-cat'].settings.index['uuid'].should.be.a.string;
+        response['mongolastic-cat'].settings.index.should.not.have.property('analysis');
         done();
       });
     });
