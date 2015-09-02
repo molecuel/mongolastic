@@ -11,7 +11,7 @@ var EventEmitter = require('events').EventEmitter;
 /**
  * Module definition
  */
-var mongolastic = function () {
+var mongolastic = function() {
   this.connection = null;
   this.prefix = null;
   this.indexPreprocessors = [];
@@ -24,7 +24,7 @@ util.inherits(mongolastic, EventEmitter);
 ////////////////////
 var instance = null;
 
-var getInstance = function () {
+var getInstance = function() {
   return instance || (instance = new mongolastic());
 };
 
@@ -34,7 +34,7 @@ var getInstance = function () {
  * @param options
  * @param {function} callback
  */
-mongolastic.prototype.connect = function (prefix, options, callback) {
+mongolastic.prototype.connect = function(prefix, options, callback) {
 
   var self = this;
 
@@ -56,7 +56,7 @@ mongolastic.prototype.connect = function (prefix, options, callback) {
   this.connection.ping({
     requestTimeout: 1000,
     hello: 'elasticsearch!'
-  }, function (err) {
+  }, function(err) {
 
     if (err) {
       return callback(err);
@@ -103,7 +103,7 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
     }
   }
 
-  async.each(Object.keys(schema.paths), function (currentpath, callback) {
+  async.each(Object.keys(schema.paths), function(currentpath, callback) {
     if (schema.paths[currentpath] && schema.paths[currentpath].options) {
       var options = schema.paths[currentpath].options;
 
@@ -112,11 +112,11 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
           options = schema.paths[currentpath].options.type[0];
           populateReferences(options, currentpath, callback);
         } else if (options.type[0]) {
-          async.each(Object.keys(options.type[0]), function (key, cb) {
+          async.each(Object.keys(options.type[0]), function(key, cb) {
             var suboptions = options.type[0][key];
             var subpath = currentpath + '.' + key;
             populateReferences(suboptions, subpath, cb);
-          }, function () {
+          }, function() {
             callback();
           });
         } else {
@@ -126,7 +126,7 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
         populateReferences(options, currentpath, callback);
       }
     }
-  }, function (err) {
+  }, function(err) {
     if (err) {
       callback(new Error('Could not populate document: ' + err));
     }
@@ -147,12 +147,12 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
  */
 mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, currentpath, options, callback) {
 
-  var populateProperties = function (doc, properties, callback) {
-    async.each(Object.keys(properties), function (property, cb) {
+  var populateProperties = function(doc, properties, callback) {
+    async.each(Object.keys(properties), function(property, cb) {
       var conf = properties[property];
       if (_.isObject(conf)) {
         var fields = conf.fields || {};
-        doc.populate(property, fields, function () {
+        doc.populate(property, fields, function() {
           if (conf.docs) {
             populateRecursive(doc, property, conf.docs, cb);
           } else {
@@ -169,7 +169,7 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
       } else {
         doc.populate(property, cb);
       }
-    }, function (err) {
+    }, function(err) {
       if (err) {
         return callback(err);
       }
@@ -177,12 +177,12 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
     });
   };
 
-  var populateRecursive = function (doc, key, options, callback) {
+  var populateRecursive = function(doc, key, options, callback) {
     if (doc.get(key) && options) {
       if (doc.get(key) instanceof Array) {
-        async.each(doc.get(key), function (subdoc, cb) {
+        async.each(doc.get(key), function(subdoc, cb) {
           populateProperties(subdoc, options, cb);
-        }, function (err) {
+        }, function(err) {
           if (err) {
             return callback(err);
           }
@@ -197,7 +197,7 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
   };
 
   // first the currentpath has to be populated to get the subdocument(s)
-  doc.populate(currentpath, function (err) {
+  doc.populate(currentpath, function(err) {
     if (err) {
       callback(err);
     } else {
@@ -217,12 +217,12 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
   if (options.modelName) {
     var elastic = getInstance();
 
-    schema.pre('save', function (next, done) {
+    schema.pre('save', function(next, done) {
       var self = this;
-      elastic.populate(self, schema, options, function (err) {
+      elastic.populate(self, schema, options, function(err) {
         if (!err) {
           var entry = self.toObject();
-          elastic.index(options.modelName, entry, function (err) {
+          elastic.index(options.modelName, entry, function(err) {
             if (!err) {
               next();
             } else {
@@ -235,8 +235,8 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
       });
     });
 
-    schema.post('remove', function () {
-      elastic.delete(options.modelName, this.id, function (err) {
+    schema.post('remove', function() {
+      elastic.delete(options.modelName, this.id, function(err) {
         if (err) {
           console.error(err);
         }
@@ -247,7 +247,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
      * @param query
      * @param cb
      */
-    schema.methods.search = function (query, cb) {
+    schema.methods.search = function(query, cb) {
       query.index = elastic.getIndexName(options.modelName);
       elastic.search(query, cb);
     };
@@ -258,11 +258,11 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
      */
     schema.statics.search = elastic.search;
 
-    schema.statics.sync = function (callback) {
+    schema.statics.sync = function(callback) {
       return elastic.sync(this, options.modelName, callback);
     };
 
-    schema.statics.syncById = function (id, callback) {
+    schema.statics.syncById = function(id, callback) {
       return elastic.syncById(this, options.modelName, id, callback);
     };
   } else {
@@ -275,7 +275,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
  * @param model
  * @param callback
  */
-mongolastic.prototype.renderMapping = function (model, callback) {
+mongolastic.prototype.renderMapping = function(model, callback) {
 
   var mapping = {};
 
@@ -283,7 +283,7 @@ mongolastic.prototype.renderMapping = function (model, callback) {
   // and merge all their mappings
   var pathMappings = {};
 
-  _.forOwn(model.schema.paths, function (value, key) {
+  _.forOwn(model.schema.paths, function(value, key) {
 
     if (_.has(value, 'options.elastic.mapping')) {
       pathMappings[key] = value.options.elastic.mapping;
@@ -303,7 +303,7 @@ mongolastic.prototype.renderMapping = function (model, callback) {
   // to be wrapped as {sub: {properties: {subSub: {properties: ...}}}}
   var nestedMapping = {};
 
-  _.forOwn(mapping, function (value, key) {
+  _.forOwn(mapping, function(value, key) {
 
     var nestedKeys = key.split('.');
     var nestedValue = value;
@@ -312,7 +312,7 @@ mongolastic.prototype.renderMapping = function (model, callback) {
     nestedValue = wrapValue(nestedKeys.pop(), nestedValue);
 
     // Deeper levels need to be wrapped as "properties"
-    _.forEachRight(nestedKeys, function (nestedKey) {
+    _.forEachRight(nestedKeys, function(nestedKey) {
 
       nestedValue = wrapValue(nestedKey, {
         properties: nestedValue
@@ -351,13 +351,13 @@ function wrapValue(key, value) {
  * @param {object} options Additional options
  * @param {function} callback The callback function
  */
-mongolastic.prototype.defaultSaveHandler = function (err, result, options, callback) {
+mongolastic.prototype.defaultSaveHandler = function(err, result, options, callback) {
   var elastic = getInstance();
   if (err && options.isNew && options.doc) {
     // delete document from eleasticsearch
     var docid = options.doc._id;
     if (docid) {
-      elastic.delete(options.modelName, docid, function () {
+      elastic.delete(options.modelName, docid, function() {
         callback();
       });
     } else {
@@ -374,7 +374,7 @@ mongolastic.prototype.defaultSaveHandler = function (err, result, options, callb
  * @param {object} [options]
  * @param {function} callback
  */
-mongolastic.prototype.registerModel = function (model, options, callback) {
+mongolastic.prototype.registerModel = function(model, options, callback) {
   var elastic = getInstance();
 
   // Check if options are provided
@@ -390,7 +390,7 @@ mongolastic.prototype.registerModel = function (model, options, callback) {
    **/
     //model.prototype.saveOrig = model.prototype.save;
 
-  model.registerSaveHandler = function (saveHandler) {
+  model.registerSaveHandler = function(saveHandler) {
     model.saveHandlers.push(saveHandler);
   };
 
@@ -438,13 +438,13 @@ mongolastic.prototype.registerModel = function (model, options, callback) {
    * Creates the index for the model with the correct mapping
    */
   elastic.indices.checkCreateByModel(model, options,
-    function (err) {
+    function(err) {
       callback(err, model);
     }
   );
 };
 
-mongolastic.prototype.save = function (document, callback) {
+mongolastic.prototype.save = function(document, callback) {
   var self = this;
   // add some options
   var options = {
@@ -459,7 +459,7 @@ mongolastic.prototype.save = function (document, callback) {
   /**
    * Original save function of mongoose
    */
-  document.save(function (saveerr, result) {
+  document.save(function(saveerr, result) {
     if (model.saveHandlers) {
 
       /**
@@ -477,13 +477,13 @@ mongolastic.prototype.save = function (document, callback) {
           cb();
         }
       };
-      async.eachSeries(model.saveHandlers, asyncHandler, function (err) {
+      async.eachSeries(model.saveHandlers, asyncHandler, function(err) {
         if (!err) {
           self.emit('mongolastic::saveHandler:success', result);
           callback(saveerr, result);
         } else {
           self.emit('mongolastic::saveHandler:error', err, options.doc);
-          async.eachSeries(model.saveHandlers, asyncHandler, function (cleanuperr) {
+          async.eachSeries(model.saveHandlers, asyncHandler, function(cleanuperr) {
             callback(cleanuperr, result);
           });
         }
@@ -501,14 +501,14 @@ mongolastic.prototype.save = function (document, callback) {
  * @param {object} doc
  * @param {function} callback
  */
-mongolastic.prototype.index = function (modelName, doc, callback) {
+mongolastic.prototype.index = function(modelName, doc, callback) {
 
   var elastic = getInstance();
   var entry = doc;
 
-  async.each(elastic.indexPreprocessors, function (handler, cb) {
+  async.each(elastic.indexPreprocessors, function(handler, cb) {
     handler(modelName, entry, cb);
-  }, function () {
+  }, function() {
     var myid;
     if (entry && entry._id) {
       myid = entry._id.toString();
@@ -528,7 +528,7 @@ mongolastic.prototype.index = function (modelName, doc, callback) {
  * @param {object} body
  * @param {function} callback
  */
-mongolastic.prototype.bulk = function (body, callback) {
+mongolastic.prototype.bulk = function(body, callback) {
   var elastic = getInstance();
   elastic.connection.bulk({
     //index: elastic.getIndexName(modelName),
@@ -544,7 +544,7 @@ mongolastic.prototype.bulk = function (body, callback) {
  * @param {string} id
  * @param {function} callback
  */
-mongolastic.prototype.delete = function (modelName, id, callback) {
+mongolastic.prototype.delete = function(modelName, id, callback) {
   var elastic = getInstance();
   elastic.connection.delete({
     index: elastic.getIndexName(modelName),
@@ -558,7 +558,7 @@ mongolastic.prototype.delete = function (modelName, id, callback) {
  * @param {object|string} query
  * @param {function} callback
  */
-mongolastic.prototype.search = function (query, callback) {
+mongolastic.prototype.search = function(query, callback) {
   var elastic = getInstance();
   if (!query.index) {
     query.index = elastic.prefix + '-*';
@@ -583,10 +583,10 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
   var bulk = [];
   var size = 100;
   var step = 0;
-  stream.on('data', function (doc) {
+  stream.on('data', function(doc) {
     doccount = doccount + 1;
     stream.pause();
-    elastic.populate(doc, schema, null, function (err) {
+    elastic.populate(doc, schema, null, function(err) {
       step = step + 1;
       donecount = donecount + 1;
       if (!err) {
@@ -608,7 +608,7 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
       }
 
       if (step >= size) {
-        elastic.bulk(bulk, function (err) {
+        elastic.bulk(bulk, function(err) {
           if (err) {
             console.err(err);
           }
@@ -622,8 +622,8 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
     });
   });
 
-  stream.on('end', function () {
-    elastic.bulk(bulk, function (err) {
+  stream.on('end', function() {
+    elastic.bulk(bulk, function(err) {
       if (err) {
         console.log(err);
       }
@@ -641,12 +641,12 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
 mongolastic.prototype.syncById = function syncById(model, modelName, id, callback) {
   var elastic = getInstance();
   var schema = model.schema;
-  model.findById(id, function (err, doc) {
+  model.findById(id, function(err, doc) {
     if (doc && !err) {
-      elastic.populate(doc, schema, null, function (poperr) {
+      elastic.populate(doc, schema, null, function(poperr) {
         if (!poperr) {
           var entry = doc.toObject();
-          elastic.index(modelName, entry, function (inerr) {
+          elastic.index(modelName, entry, function(inerr) {
             if (!inerr) {
               callback();
             } else {
@@ -678,7 +678,7 @@ mongolastic.prototype.deleteIndex = function deleteIndex(modelName, callback) {
  * @param {string} modelName
  * @returns {string}
  */
-mongolastic.prototype.getIndexName = function (modelName) {
+mongolastic.prototype.getIndexName = function(modelName) {
   var elastic = getInstance();
   if (elastic.prefix) {
     if (modelName.indexOf(elastic.prefix + '-') === 0) {
