@@ -78,28 +78,32 @@ mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreproce
 /**
  * Populates object references according to their elastic-options. Invoked on pre(save) and sync to enable synchronisation
  * of full object trees to elasticsearch index
- * @param doc
- * @param schema
- * @param callback
+ * @param {object} doc
+ * @param {object} schema
+ * @param {object} options
+ * @param {function} callback
  */
 mongolastic.prototype.populate = function populate(doc, schema, options, callback) {
   var elastic = getInstance();
 
   function populateReferences(options, currentpath, callback) {
-    if(options && options.ref) {
-      if(options.elastic && options.elastic.avoidpop) {
-        callback();
-      } else {
-        if(options.elastic && options.elastic.populate) {
-          elastic.populateSubdoc(doc, schema, currentpath, options.elastic.populate, callback);
-        } else if(options.elastic && options.elastic.popfields) {
-          doc.populate(currentpath, options.elastic.popfields, callback);
-        } else {
-          doc.populate(currentpath, callback);
-        }
-      }
+
+    // TODO Should this return error or just "silently" fail?
+    if(!(options && options.ref)) {
+      return callback(null, null);
+    }
+
+    // TODO Should this return error or just "silently" fail?
+    if(options.elastic && options.elastic.avoidpop) {
+      return callback(null, null);
+    }
+
+    if(options.elastic && options.elastic.populate) {
+      elastic.populateSubdoc(doc, schema, currentpath, options.elastic.populate, callback);
+    } else if(options.elastic && options.elastic.popfields) {
+      doc.populate(currentpath, options.elastic.popfields, callback);
     } else {
-      callback();
+      doc.populate(currentpath, callback);
     }
   }
 
@@ -116,22 +120,15 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
             var suboptions = options.type[0][key];
             var subpath = currentpath + '.' + key;
             populateReferences(suboptions, subpath, cb);
-          }, function() {
-            callback();
-          });
+          }, callback);
         } else {
-          callback();
+          return callback(null, null);
         }
       } else {
         populateReferences(options, currentpath, callback);
       }
     }
-  }, function(err) {
-    if(err) {
-      callback(new Error('Could not populate document: ' + err));
-    }
-    callback();
-  });
+  }, callback);
 };
 
 
@@ -169,40 +166,31 @@ mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, curr
       } else {
         doc.populate(property, cb);
       }
-    }, function(err) {
-      if(err) {
-        return callback(err);
-      }
-      callback();
-    });
+    }, callback);
   };
 
   var populateRecursive = function(doc, key, options, callback) {
-    if(doc.get(key) && options) {
-      if(doc.get(key) instanceof Array) {
-        async.each(doc.get(key), function(subdoc, cb) {
-          populateProperties(subdoc, options, cb);
-        }, function(err) {
-          if(err) {
-            return callback(err);
-          }
-          return callback();
-        });
-      } else {
-        populateProperties(doc.get(key), options, callback);
-      }
+
+    // TODO Should this return error or just "silently" fail?
+    if(!(doc.get(key) && options)) {
+      return callback(null, null);
+    }
+
+    if(doc.get(key) instanceof Array) {
+      async.each(doc.get(key), function(subdoc, cb) {
+        populateProperties(subdoc, options, cb);
+      }, callback);
     } else {
-      callback();
+      populateProperties(doc.get(key), options, callback);
     }
   };
 
   // first the currentpath has to be populated to get the subdocument(s)
   doc.populate(currentpath, function(err) {
     if(err) {
-      callback(err);
-    } else {
-      populateRecursive(doc, currentpath, options, callback);
+      return callback(err, null);
     }
+    populateRecursive(doc, currentpath, options, callback);
   });
 };
 
@@ -253,7 +241,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     };
 
     /**
-     * Search with specifiing a model or index
+     * Search with specifying a model or index
      * @type {search|Function|string|api.indices.stats.params.search|Boolean|commandObject.search|*}
      */
     schema.statics.search = elastic.search;
@@ -272,8 +260,8 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
 
 /**
  * Render the mapping for the model
- * @param model
- * @param callback
+ * @param {object} model
+ * @param {function} callback
  */
 mongolastic.prototype.renderMapping = function(model, callback) {
 
@@ -358,13 +346,13 @@ mongolastic.prototype.defaultSaveHandler = function(err, result, options, callba
     var docid = options.doc._id;
     if(docid) {
       elastic.delete(options.modelName, docid, function() {
-        callback();
+        return callback();
       });
     } else {
-      callback();
+      return callback();
     }
   } else {
-    callback();
+    return callback();
   }
 };
 
@@ -439,7 +427,7 @@ mongolastic.prototype.registerModel = function(model, options, callback) {
    */
   elastic.indices.checkCreateByModel(model, options,
     function(err) {
-      callback(err, model);
+      return callback(err, model);
     }
   );
 };
@@ -459,7 +447,7 @@ mongolastic.prototype.save = function(document, callback) {
   /**
    * Original save function of mongoose
    */
-  document.save(function(saveerr, result) {
+  document.save(function(saveErr, result) {
     if(model.saveHandlers) {
 
       /**
@@ -472,25 +460,25 @@ mongolastic.prototype.save = function(document, callback) {
       var asyncHandler = function asyncHandler(item, cb) {
         // check if the saveHandler item is a function
         if('function' === typeof item) {
-          item(saveerr, result, options, cb);
+          item(saveErr, result, options, cb);
         } else {
-          cb();
+          return cb();
         }
       };
       async.eachSeries(model.saveHandlers, asyncHandler, function(err) {
         if(!err) {
           self.emit('mongolastic::saveHandler:success', result);
-          callback(saveerr, result);
+          return callback(saveErr, result);
         } else {
           self.emit('mongolastic::saveHandler:error', err, options.doc);
-          async.eachSeries(model.saveHandlers, asyncHandler, function(cleanuperr) {
-            callback(cleanuperr, result);
+          async.eachSeries(model.saveHandlers, asyncHandler, function(cleanupErr) {
+            return callback(cleanupErr, result);
           });
         }
       });
     } else {
-      self.emit('mongolastic::saveHandler:none', saveerr, options.doc);
-      callback(saveerr, result);
+      self.emit('mongolastic::saveHandler:none', saveErr, options.doc);
+      return callback(saveErr, result);
     }
   });
 };
@@ -636,6 +624,7 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
  * SyncById function for database model
  * @param {object} model
  * @param {string} modelName
+ * @param {string} id
  * @param {function} callback
  */
 mongolastic.prototype.syncById = function syncById(model, modelName, id, callback) {
