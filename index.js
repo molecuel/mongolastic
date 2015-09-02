@@ -59,21 +59,23 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
   }, function(err) {
 
     if(err) {
-      return callback(err);
+      return callback(err, null);
     }
 
     return callback(null, self.connection);
   });
 };
 
+
 /**
  * Registers handler for individual populating elements on before es-indexing
- *
  * @param  {type} handler description
  */
+
 mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreprocessor(handler) {
   this.indexPreprocessors.push(handler);
 };
+
 
 /**
  * Populates object references according to their elastic-options. Invoked on pre(save) and sync to enable synchronisation
@@ -86,7 +88,7 @@ mongolastic.prototype.registerIndexPreprocessor = function registerIndexPreproce
 mongolastic.prototype.populate = function populate(doc, schema, options, callback) {
   var elastic = getInstance();
 
-  function populateReferences(options, currentpath, callback) {
+  function populateReferences(options, path, callback) {
 
     // TODO Should this return error or just "silently" fail?
     if(!(options && options.ref)) {
@@ -94,38 +96,38 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
     }
 
     // TODO Should this return error or just "silently" fail?
-    if(options.elastic && options.elastic.avoidpop) {
+    if(_.has(options, 'elastic.avoidpop')) {
       return callback(null, null);
     }
 
-    if(options.elastic && options.elastic.populate) {
-      elastic.populateSubdoc(doc, schema, currentpath, options.elastic.populate, callback);
+    if(_.has(options, 'elastic.populate')) {
+      elastic.populateSubdoc(doc, schema, path, options.elastic.populate, callback);
     } else if(options.elastic && options.elastic.popfields) {
-      doc.populate(currentpath, options.elastic.popfields, callback);
+      doc.populate(path, options.elastic.popfields, callback);
     } else {
-      doc.populate(currentpath, callback);
+      doc.populate(path, callback);
     }
   }
 
-  async.each(Object.keys(schema.paths), function(currentpath, callback) {
-    if(schema.paths[currentpath] && schema.paths[currentpath].options) {
-      var options = schema.paths[currentpath].options;
+  async.each(Object.keys(schema.paths), function(path, callback) {
+    if(schema.paths[path] && schema.paths[path].options) {
+      var options = schema.paths[path].options;
 
-      if(options.type instanceof Array) { //hande 1:n relationships []
+      if(_.isArray(options.type)) { //hande 1:n relationships []
         if(options.type[0] && options.type[0].type) { // direct object references
-          options = schema.paths[currentpath].options.type[0];
-          populateReferences(options, currentpath, callback);
+          options = schema.paths[path].options.type[0];
+          populateReferences(options, path, callback);
         } else if(options.type[0]) {
           async.each(Object.keys(options.type[0]), function(key, cb) {
-            var suboptions = options.type[0][key];
-            var subpath = currentpath + '.' + key;
-            populateReferences(suboptions, subpath, cb);
+            var subOptions = options.type[0][key];
+            var subPath = path + '.' + key;
+            populateReferences(subOptions, subPath, cb);
           }, callback);
         } else {
           return callback(null, null);
         }
       } else {
-        populateReferences(options, currentpath, callback);
+        populateReferences(options, path, callback);
       }
     }
   }, callback);
@@ -133,64 +135,60 @@ mongolastic.prototype.populate = function populate(doc, schema, options, callbac
 
 
 /**
- * populateSubdoc - Populate at sub document before indexing it with elastic
+ * populateSubDoc - Populate at sub document before indexing it with elastic
  *
  * @param  {object} doc         the document
  * @param  {object} schema      the schema
- * @param  {string} currentpath the current path in schema
+ * @param  {string} path the current path in schema
  * @param  {object} options     additional options
  * @param  {function} callback    the callback function
  * @callback
  */
-mongolastic.prototype.populateSubdoc = function populateSubdoc(doc, schema, currentpath, options, callback) {
+mongolastic.prototype.populateSubdoc = function populateSubDoc(doc, schema, path, options, callback) {
 
   var populateProperties = function(doc, properties, callback) {
-    async.each(Object.keys(properties), function(property, cb) {
-      var conf = properties[property];
-      if(_.isObject(conf)) {
-        var fields = conf.fields || {};
-        doc.populate(property, fields, function() {
-          if(conf.docs) {
-            populateRecursive(doc, property, conf.docs, cb);
-          } else {
-            cb();
-          }
-        });
-        /*
-         var fields = conf.fields || {};
+    async.each(Object.keys(properties), function(path, cb) {
 
-         doc.populate(property, {}, function() {
-         cb();
-         });
-         **/
+      var value = properties[path];
+
+      if(_.isPlainObject(value)) {
+        var fields = value.fields || {};
+        doc.populate(path, fields, function() {
+
+          if(!value.docs) {
+            return cb(null, null);
+          }
+
+          populateRecursive(doc, path, value.docs, cb);
+        });
       } else {
-        doc.populate(property, cb);
+        doc.populate(path, cb);
       }
     }, callback);
   };
 
-  var populateRecursive = function(doc, key, options, callback) {
+  var populateRecursive = function(doc, path, options, callback) {
 
     // TODO Should this return error or just "silently" fail?
-    if(!(doc.get(key) && options)) {
+    if(!(doc.get(path) && options)) {
       return callback(null, null);
     }
 
-    if(doc.get(key) instanceof Array) {
-      async.each(doc.get(key), function(subdoc, cb) {
+    if(doc.get(path) instanceof Array) {
+      async.each(doc.get(path), function(subdoc, cb) {
         populateProperties(subdoc, options, cb);
       }, callback);
     } else {
-      populateProperties(doc.get(key), options, callback);
+      populateProperties(doc.get(path), options, callback);
     }
   };
 
-  // first the currentpath has to be populated to get the subdocument(s)
-  doc.populate(currentpath, function(err) {
+  // first the path has to be populated to get the sub-document(s)
+  doc.populate(path, function(err) {
     if(err) {
       return callback(err, null);
     }
-    populateRecursive(doc, currentpath, options, callback);
+    populateRecursive(doc, path, options, callback);
   });
 };
 
@@ -209,8 +207,8 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
       var self = this;
       elastic.populate(self, schema, options, function(err) {
         if(!err) {
-          var entry = self.toObject();
-          elastic.index(options.modelName, entry, function(err) {
+
+          elastic.index(options.modelName, self, function(err) {
             if(!err) {
               next();
             } else {
@@ -226,10 +224,12 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
     schema.post('remove', function() {
       elastic.delete(options.modelName, this.id, function(err) {
         if(err) {
+          // TODO: Error handling feels a bit shaky here?
           console.error(err);
         }
       });
     });
+
     /**
      * Search on current model with predefined index
      * @param query
@@ -254,6 +254,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
       return elastic.syncById(this, options.modelName, id, callback);
     };
   } else {
+    // TODO: Error handling feels a bit shaky here?
     console.error('missing modelName');
   }
 };
@@ -334,7 +335,7 @@ function wrapValue(key, value) {
  * @todo This is currently not working correctly. You have to implement this
  * functionality in your project to be sure it is executed on errors
  *
- * @param {object} error The error object
+ * @param {object} err The error object
  * @param {object} result The database result
  * @param {object} options Additional options
  * @param {function} callback The callback function
@@ -342,7 +343,7 @@ function wrapValue(key, value) {
 mongolastic.prototype.defaultSaveHandler = function(err, result, options, callback) {
   var elastic = getInstance();
   if(err && options.isNew && options.doc) {
-    // delete document from eleasticsearch
+    // delete document from elasticsearch
     var docid = options.doc._id;
     if(docid) {
       elastic.delete(options.modelName, docid, function() {
@@ -434,7 +435,7 @@ mongolastic.prototype.registerModel = function(model, options, callback) {
 
 mongolastic.prototype.save = function(document, callback) {
   var self = this;
-  // add some options
+
   var options = {
     isNew: document.isNew,
     model: document.constructor,
@@ -459,10 +460,11 @@ mongolastic.prototype.save = function(document, callback) {
        */
       var asyncHandler = function asyncHandler(item, cb) {
         // check if the saveHandler item is a function
-        if('function' === typeof item) {
+        if(_.isFunction(item)) {
           item(saveErr, result, options, cb);
         } else {
-          return cb();
+          // TODO: Should this return an error instead?
+          return cb(null, null);
         }
       };
       async.eachSeries(model.saveHandlers, asyncHandler, function(err) {
@@ -492,20 +494,16 @@ mongolastic.prototype.save = function(document, callback) {
 mongolastic.prototype.index = function(modelName, doc, callback) {
 
   var elastic = getInstance();
-  var entry = doc;
 
-  async.each(elastic.indexPreprocessors, function(handler, cb) {
-    handler(modelName, entry, cb);
+  async.each(elastic.indexPreprocessors, function(delegate, cb) {
+    delegate(modelName, doc, cb);
   }, function() {
-    var myid;
-    if(entry && entry._id) {
-      myid = entry._id.toString();
-    }
+
     elastic.connection.index({
       index: elastic.getIndexName(modelName),
       type: modelName,
-      id: myid,
-      body: entry,
+      id: doc.id,
+      body: doc.toObject(),
       refresh: true
     }, callback);
   });
@@ -564,19 +562,18 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
   var elastic = getInstance();
   var stream = model.find().stream();
   var schema = model.schema;
-  var errcount = 0;
-  var rescount = 0;
-  var doccount = 0;
-  var donecount = 0;
+  var errCount = 0;
+  var docCount = 0;
+  var doneCount = 0;
   var bulk = [];
   var size = 100;
   var step = 0;
   stream.on('data', function(doc) {
-    doccount = doccount + 1;
+    docCount = docCount + 1;
     stream.pause();
     elastic.populate(doc, schema, null, function(err) {
       step = step + 1;
-      donecount = donecount + 1;
+      doneCount = doneCount + 1;
       if(!err) {
         var action = {
           index: {
@@ -588,17 +585,14 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
         bulk.push(action);
         bulk.push(doc);
       } else {
-        if(err) {
-          errcount = errcount + 1;
-        } else {
-          rescount = rescount + 1;
-        }
+        errCount = errCount + 1;
       }
 
       if(step >= size) {
         elastic.bulk(bulk, function(err) {
           if(err) {
-            console.err(err);
+            // TODO: Error handling feels a bit shaky here?
+            console.error(err);
           }
           bulk = [];
           step = 0;
@@ -612,10 +606,13 @@ mongolastic.prototype.sync = function sync(model, modelName, callback) {
 
   stream.on('end', function() {
     elastic.bulk(bulk, function(err) {
+
+      // TODO: Error handling feels a bit shaky here?
       if(err) {
         console.log(err);
       }
-      callback(errcount, donecount);
+      // TODO: This should return proper Error object and not a number
+      return callback(errCount, doneCount);
     });
   });
 };
@@ -631,24 +628,21 @@ mongolastic.prototype.syncById = function syncById(model, modelName, id, callbac
   var elastic = getInstance();
   var schema = model.schema;
   model.findById(id, function(err, doc) {
-    if(doc && !err) {
-      elastic.populate(doc, schema, null, function(poperr) {
-        if(!poperr) {
-          var entry = doc.toObject();
-          elastic.index(modelName, entry, function(inerr) {
-            if(!inerr) {
-              callback();
-            } else {
-              callback(inerr);
-            }
-          });
-        } else {
-          callback(poperr);
-        }
-      });
-    } else {
-      callback(err);
+    if(err) {
+      return callback(err, null);
     }
+
+    if(!doc) {
+      return callback(new Error('No document found for id %s', id), null);
+    }
+
+    elastic.populate(doc, schema, null, function(err) {
+      if(err) {
+        return callback(err, null);
+      }
+
+      elastic.index(modelName, doc, callback);
+    });
   });
 };
 
@@ -669,15 +663,21 @@ mongolastic.prototype.deleteIndex = function deleteIndex(modelName, callback) {
  */
 mongolastic.prototype.getIndexName = function(modelName) {
   var elastic = getInstance();
-  if(elastic.prefix) {
-    if(modelName.indexOf(elastic.prefix + '-') === 0) {
-      return modelName.toLowerCase();
-    } else {
-      return elastic.prefix + '-' + modelName.toLowerCase();
-    }
-  } else {
+
+  // If no prefix has been defined,
+  // use the mode name as index name
+  if(!elastic.prefix) {
     return modelName.toLowerCase();
   }
+
+  // If the defined prefix is already part of the model name
+  // use the model name as index name
+  if(_.startsWith(modelName, elastic.prefix + '-')) {
+    return modelName.toLowerCase();
+  }
+
+  // Prepend model name with prefix
+  return elastic.prefix + '-' + modelName.toLowerCase();
 };
 
 
