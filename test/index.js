@@ -6,9 +6,19 @@ var assert = require('assert'),
   should = require('should'),
   mongoose = require('mongoose');
 
-describe('mongolastic', function(){
+describe('mongolastic', function() {
   //mongoose.set('debug', true);
-  var cat, CatSchema, CostumeSchema, costume, DogSchema, dog, FailSchema, myFail;
+  var cat;
+  var CatSchema;
+  var CostumeSchema;
+  var costume;
+  var DogSchema;
+  var dog;
+  var FailSchema;
+  var myFail;
+  var SettingsTestSchema;
+  var settingsTest;
+
   before(function() {
     mongoose.connect('mongodb://localhost/mongolastic');
 
@@ -17,7 +27,7 @@ describe('mongolastic', function(){
       color: {type: String},
       integer: {type: Number, elastic: {mapping: {type: 'integer'}}}
     });
-    CostumeSchema.plugin(mongolastic.plugin, {modelname: 'costume'});
+    CostumeSchema.plugin(mongolastic.plugin, {modelName: 'costume'});
     costume = mongoose.model('costume', CostumeSchema);
 
     CatSchema = mongoose.Schema({
@@ -32,12 +42,12 @@ describe('mongolastic', function(){
         }
       }
     });
-    CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
+    CatSchema.plugin(mongolastic.plugin, {modelName: 'cat'});
     cat = mongoose.model('cat', CatSchema);
 
     cat.elastic = {
       mapping: {
-        'location.geo': { type: 'geo_point', 'lat_lon': true }
+        'location.geo': {type: 'geo_point', 'lat_lon': true}
       }
     };
 
@@ -46,32 +56,39 @@ describe('mongolastic', function(){
       date: {type: Date, default: Date.now},
       costume: {type: mongoose.Schema.ObjectId, ref: 'costume'}
     });
-    DogSchema.plugin(mongolastic.plugin, {modelname: 'dog'});
+    DogSchema.plugin(mongolastic.plugin, {modelName: 'dog'});
     dog = mongoose.model('dog', DogSchema);
 
     FailSchema = mongoose.Schema({
       name: String,
       keyword: {type: String, required: true}
     });
-    FailSchema.plugin(mongolastic.plugin, {modelname: 'fail'});
+    FailSchema.plugin(mongolastic.plugin, {modelName: 'fail'});
     myFail = mongoose.model('fail', FailSchema);
+
+    // Settings test
+    SettingsTestSchema = mongoose.Schema({
+      name: String
+    });
+    SettingsTestSchema.plugin(mongolastic.plugin, {modelName: 'settingsTest'});
+    settingsTest = mongoose.model('settingsTest', SettingsTestSchema);
 
   });
 
-  describe('mongolastic', function () {
-    it('should be a object', function () {
+  describe('mongolastic', function() {
+    it('should be a object', function() {
       assert('object' === typeof mongolastic);
     });
   });
 
-  describe('create connection', function(){
-    it('should create a connection', function(done){
+  describe('create connection', function() {
+    it('should create a connection', function(done) {
       mongolastic.connect('mongolastic', {
         host: 'localhost:9200',
         sniffOnStart: true
       }, function(err, conn) {
         should.not.exist(err);
-        conn.should.be.an.Object;
+        conn.should.be.an.Object();
         done();
       });
     });
@@ -79,7 +96,7 @@ describe('mongolastic', function(){
     it('should create the mapping for the cat model', function(done) {
       mongolastic.registerModel(cat, function(err, result) {
         should.not.exist(err);
-        result.should.be.a.function;
+        result.should.be.a.Function();
         done();
       });
     });
@@ -87,7 +104,7 @@ describe('mongolastic', function(){
     it('should create the mapping for the dog model', function(done) {
       mongolastic.registerModel(dog, function(err, result) {
         should.not.exist(err);
-        result.should.be.a.function;
+        result.should.be.a.Function();
         done();
       });
     });
@@ -95,7 +112,7 @@ describe('mongolastic', function(){
     it('should create the mapping for the costume model', function(done) {
       mongolastic.registerModel(costume, function(err, result) {
         should.not.exist(err);
-        result.should.be.a.function;
+        result.should.be.a.Function();
         done();
       });
     });
@@ -103,7 +120,7 @@ describe('mongolastic', function(){
     it('should create the mapping for the myFail model', function(done) {
       mongolastic.registerModel(myFail, function(err, result) {
         should.not.exist(err);
-        result.should.be.a.function;
+        result.should.be.a.Function();
         done();
       });
     });
@@ -112,9 +129,59 @@ describe('mongolastic', function(){
       mongolastic.indices.getMapping(cat.modelName, function(err, response, status) {
         should.not.exist(err);
         assert(status === 200);
-        response['mongolastic-cat'].should.be.object;
-        response['mongolastic-cat'].mappings.should.be.object;
-        response['mongolastic-cat'].mappings.cat.should.be.object;
+        response['mongolastic-cat'].should.be.an.Object();
+        response['mongolastic-cat'].mappings.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.should.be.an.Object();
+        done();
+      });
+    });
+
+    it('should create the mapping for the settingsTest model', function(done) {
+
+      var options = {
+        'settings': {
+          'index': {
+            'analysis': {
+              'filter': {
+                'english_stop': {
+                  'type': 'stop',
+                  'stopwords': '_english_'
+                }
+              }
+            }
+          }
+        }
+      };
+
+      mongolastic.registerModel(settingsTest, options, function(err, result) {
+        should.not.exist(err);
+        result.should.be.a.Function();
+        done();
+      });
+    });
+
+    it('should return the custom index settings for the settingsTest model', function(done) {
+      mongolastic.indices.getSettings(settingsTest.modelName, function(err, response, status) {
+        should.not.exist(err);
+        assert(status === 200);
+        response['mongolastic-settingstest'].should.be.an.Object();
+        response['mongolastic-settingstest'].settings.should.be.an.Object();
+        response['mongolastic-settingstest'].settings.index.should.be.an.Object();
+        response['mongolastic-settingstest'].settings.index['uuid'].should.be.a.String();
+        response['mongolastic-settingstest'].settings.index['analysis'].should.be.an.Object();
+        done();
+      });
+    });
+
+    it('should return default index settings for the cat model', function(done) {
+      mongolastic.indices.getSettings(cat.modelName, function(err, response, status) {
+        should.not.exist(err);
+        assert(status === 200);
+        response['mongolastic-cat'].should.be.an.Object();
+        response['mongolastic-cat'].settings.should.be.an.Object();
+        response['mongolastic-cat'].settings.index.should.be.an.Object();
+        response['mongolastic-cat'].settings.index['uuid'].should.be.a.String();
+        response['mongolastic-cat'].settings.index.should.not.have.property('analysis');
         done();
       });
     });
@@ -122,38 +189,59 @@ describe('mongolastic', function(){
 
   describe('save mongoose model', function() {
     var kitty;
+
     it('should create a new object in mongoose model', function(done) {
-      kitty = new cat({ name: 'Zildjian' });
-      kitty.save(function (err, result) {
+      kitty = new cat({name: 'Zildjian'});
+      kitty.save(function(err, result) {
         should.not.exist(err);
-        result.should.be.an.Object;
+        result.should.be.an.Object();
         done();
       });
     });
 
     it('should update a mongoose object', function(done) {
       kitty.name = 'Zlatko';
-      kitty.save(function (err, result) {
+      kitty.save(function(err, result) {
         should.not.exist(err);
-        result.should.be.an.Object;
+        result['name'].should.equal('Zlatko');
+
         // Add timeout after saving to give elasticsearch some time to index
         setTimeout(function() {
-          done();
+
+          // Check that document has been updated in elasticsearch
+          var query = {
+            'body': {
+              'query': {
+                'match': {'_id': kitty.id}
+              }
+            }
+          };
+
+          kitty.search(query, function(err, result) {
+            should.not.exist(err);
+            var hit = result.hits.hits[0];
+            hit['_id'].should.equal(kitty.id);
+            done();
+          });
+
         }, 1000);
       });
     });
 
     it('should find the mongoose object', function(done) {
+
       var query = {
         'body': {
           'query': {
-            'match': {'_id': kitty._id}
+            'match': {'_id': kitty.id}
           }
         }
       };
+
       kitty.search(query, function(err, result) {
         should.not.exist(err);
-        result.hits.hits[0].should.be.an.Object;
+        var hit = result.hits.hits[0];
+        hit['_id'].should.equal(kitty.id);
         done();
       });
     });
@@ -161,7 +249,16 @@ describe('mongolastic', function(){
     it('should delete from index', function(done) {
       mongolastic.delete('cat', kitty.id, function(err, result) {
         should.not.exist(err);
-        result.should.be.an.Object;
+        result.should.be.an.Object();
+        done();
+      });
+    });
+
+    it('should return an error when trying to delete and id is not a string', function(done) {
+      mongolastic.delete('cat', kitty._id, function(err, result) {
+        should.exist(err);
+        err.should.be.an.Error();
+        should.equal(null, result);
         done();
       });
     });
@@ -169,7 +266,7 @@ describe('mongolastic', function(){
     it('should reindex mongoose object', function(done) {
       mongolastic.index('cat', kitty, function(err, result) {
         should.not.exist(err);
-        result.should.be.an.Object;
+        result.should.be.an.Object();
       });
       // Add timeout after saving to give elasticsearch some time to index
       setTimeout(function() {
@@ -193,67 +290,69 @@ describe('mongolastic', function(){
     });
 
     var bat;
-
     it('should create a new sub object in mongoose model', function(done) {
       bat = new costume({
         name: 'Batman',
         color: 'black'
       });
 
-      mongolastic.save(bat, function (err, result) {
+      bat.save(function(err, res) {
         should.not.exist(err);
-        result.should.be.an.Object;
+        res.should.be.an.Object();
+        res['_id'].should.be.an.Object();
+        res['name'].should.equal('Batman');
+        res['color'].should.equal('black');
         done();
       });
     });
 
     it('should create a object with sub object in mongoose model', function(done) {
-      var batcat = new cat({
+      var batCat = new cat({
         name: 'Batcat',
         costume: bat._id
       });
 
-      mongolastic.save(batcat, function (err, result) {
-        should.not.exist(err);
-        result.should.be.an.Object;
-        result.costume.should.be.an.Object;
-        result.costume._id.should.be.an.Object;
-        done();
+      batCat.save(function(err, res) {
+
+        // Add timeout after saving to give elasticsearch some time to index
+        setTimeout(function() {
+
+          should.not.exist(err);
+          res['_id'].should.be.an.Object();
+          res['name'].should.equal('Batcat');
+
+          var costume = res['costume'];
+          costume['_id'].should.be.an.Object();
+          costume['name'].should.equal('Batman');
+          should.not.exist(costume['color']);
+          done();
+
+        }, 1000);
       });
     });
 
-    it('should create a new object with sub object in mongoose without specified fields', function(done) {
-      var dogbat = new dog({
+    it('should create a new object with sub object in mongoose without specified popfields', function(done) {
+      var dogBat = new dog({
         name: 'DogBat',
         costume: bat._id
       });
 
-      mongolastic.save(dogbat, function (err, result) {
-        should.not.exist(err);
-        result.should.be.an.Object;
-        result.costume.should.be.an.Object;
-        result.costume.name.should.be.an.String;
-        result.costume.color.should.be.an.String;
-        done();
-      });
-    });
+      dogBat.save(function(err, res) {
 
-    it('should create a new entry with custom save handler for the object type', function(done) {
-      costume.registerSaveHandler(function(err, result, options, callback) {
-        result.test = true;
-        callback();
-      });
+        // Add timeout after saving to give elasticsearch some time to index
+        setTimeout(function() {
 
-      bat = new costume({
-        name: 'Batman',
-        color: 'black'
-      });
+          should.not.exist(err);
+          res['_id'].should.be.an.Object();
+          res['name'].should.equal('DogBat');
 
-      mongolastic.save(bat, function (err, result) {
-        should.not.exist(err);
-        result.should.be.an.Object;
-        result.test.should.be.true;
-        done();
+          var costume = res['costume'];
+          costume['_id'].should.be.an.Object();
+          costume['name'].should.equal('Batman');
+          costume['color'].should.equal('black');
+          done();
+
+        }, 1000);
       });
     });
 
@@ -261,15 +360,14 @@ describe('mongolastic', function(){
       mongolastic.indices.getMapping(cat.modelName, function(err, response, status) {
         should.not.exist(err);
         assert(status === 200);
-        response['mongolastic-cat'].should.be.object;
-        response['mongolastic-cat'].mappings.should.be.object;
-        response['mongolastic-cat'].mappings.cat.should.be.object;
-        response['mongolastic-cat'].mappings.cat.properties.should.be.object;
-        response['mongolastic-cat'].mappings.cat.properties.test.should.be.object;
-        response['mongolastic-cat'].mappings.cat.properties.test.properties.should.be.object;
-        response['mongolastic-cat'].mappings.cat.properties.test.properties.deep.should.be.object;
-        response['mongolastic-cat'].mappings.cat.properties.test.properties.deep.properties.should.be.object;
-        //console.log(JSON.stringify(response));
+        response['mongolastic-cat'].should.be.an.Object();
+        response['mongolastic-cat'].mappings.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.properties.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.properties.test.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.properties.test.properties.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.properties.test.properties.deep.should.be.an.Object();
+        response['mongolastic-cat'].mappings.cat.properties.test.properties.deep.properties.should.be.an.Object();
         done();
       });
     });
@@ -280,25 +378,27 @@ describe('mongolastic', function(){
       done();
     });
 
-    var testobject3;
-    it('should fail to save and remove objects from index', function(done) {
-      testobject3 = new myFail({
+    it('should fail to save invalid object and not add it to the search index', function(done) {
+      var failObject = new myFail({
         title: 'test2name',
         lang: 'en'
       });
 
-      mongolastic.save(testobject3, function(err) {
+      failObject.save(function(saveErr, saveRes) {
+
         var query = {
           'body': {
             'query': {
-              'match': {'_id': testobject3._id}
+              'match': {'_id': failObject.id}
             }
           }
         };
-        testobject3.search(query, function(searcherr, result) {
-          should.exist(err);
-          should.not.exist(searcherr);
-          assert(result.hits.total === 0);
+
+        failObject.search(query, function(searchErr, res) {
+          should.exist(saveErr);
+          should.equal(null, saveRes);
+          should.not.exist(searchErr);
+          assert(res.hits.total === 0);
           done();
         });
       });
