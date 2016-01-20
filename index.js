@@ -506,6 +506,7 @@ mongolastic.prototype.index = function(modelname, doc, callback) {
     var myid;
     if(entry && entry._id) {
       myid = entry._id.toString();
+      delete entry._id;
     }
     elastic.connection.index({
       index: elastic.getIndexName(modelname),
