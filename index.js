@@ -225,7 +225,8 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
       var self = this;
       elastic.populate(self, schema, options, function(err) {
         if(!err) {
-          elastic.index(options.modelname, self, function(err) {
+          var entry = self.toObject();
+          elastic.index(options.modelname, entry, function(err) {
             if(!err) {
               next();
             } else {
@@ -498,7 +499,6 @@ mongolastic.prototype.save = function(document, callback) {
  */
 mongolastic.prototype.index = function(modelname, doc, callback) {
   var elastic = getInstance();
-
   var entry = doc;
   async.each(elastic.indexPreprocessors, function(handler, cb) {
     handler(modelname, entry, cb);
@@ -585,7 +585,6 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
     elastic.populate(doc, schema, null, function(err) {
       step = step + 1;
       donecount = donecount +1;
-      console.log('POPULATE: ' + donecount + ' ' + doc._id);
       if(!err) {
         var action = {
           index: {
@@ -597,7 +596,6 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
         bulk.push(action);
         bulk.push(doc);
       } else {
-        console.err('error populate doc ' + doc._id + ' ' + err);
         if(err) {
           errcount = errcount +1;
         } else {
@@ -643,7 +641,8 @@ mongolastic.prototype.syncById = function syncById(model, modelname, id, callbac
     if(doc && !err) {
       elastic.populate(doc, schema, null, function(poperr) {
         if(!poperr) {
-          elastic.index(modelname, doc, function(inerr) {
+          var entry = doc.toObject();
+          elastic.index(modelname, entry, function(inerr) {
             if(!inerr) {
               callback();
             } else {
@@ -689,4 +688,10 @@ mongolastic.prototype.getIndexName = function(name) {
 };
 
 
-module.exports = getInstance();
+//application wide singleton
+global.singletons = global.singletons || {};
+if (global.singletons['mongolastic']) {
+  module.exports = global.singletons['mongolastic'];
+} else {
+  global.singletons['mongolastic'] = module.exports = getInstance();
+}
