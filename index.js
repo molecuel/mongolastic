@@ -362,6 +362,9 @@ mongolastic.prototype.defaultSaveHandler = function(err, result, options, callba
     // delete document from eleasticsearch
     var docid = options.doc._id;
     if(docid) {
+      if(typeof docid === 'object') {
+        docid = docid.toString();
+      }
       elastic.delete(options.modelName, docid, function() {
         callback();
       });
