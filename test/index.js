@@ -67,8 +67,7 @@ describe('mongolastic', function(){
   describe('create connection', function(){
     it('should create a connection', function(done){
       mongolastic.connect('mongolastic', {
-        host: 'localhost:9200',
-        sniffOnStart: true
+        host: 'localhost:9200'
       }, function(err, conn) {
         should.not.exist(err);
         conn.should.be.an.Object;
@@ -132,6 +131,7 @@ describe('mongolastic', function(){
     });
 
     it('should update a mongoose object', function(done) {
+      this.timeout = 5000;
       kitty.name = 'Zlatko';
       kitty.save(function (err, result) {
         should.not.exist(err);

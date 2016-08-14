@@ -10,7 +10,7 @@
   "immed": true,
   "expr": true,
   "indent": 2,
-  "latedef": "nofunc",
+  "latedef": false,
   "newcap": false,
   "noarg": true,
   "noempty": true,

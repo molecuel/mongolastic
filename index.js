@@ -362,9 +362,6 @@ mongolastic.prototype.defaultSaveHandler = function(err, result, options, callba
     // delete document from eleasticsearch
     var docid = options.doc._id;
     if(docid) {
-      if(typeof docid === 'object') {
-        docid = docid.toString();
-      }
       elastic.delete(options.modelName, docid, function() {
         callback();
       });
@@ -507,15 +504,19 @@ mongolastic.prototype.index = function(modelname, doc, callback) {
     handler(modelname, entry, cb);
   }, function() {
     var myid;
-    if(entry && entry._id) {
-      myid = entry._id.toString();
-      delete entry._id;
+    var saveentry = entry;
+    if(saveentry.toObject) {
+      saveentry = entry.toObject();
+    }
+    if(saveentry && saveentry._id) {
+      myid = saveentry._id.toString();
+      delete saveentry._id;
     }
     elastic.connection.index({
       index: elastic.getIndexName(modelname),
       type: modelname,
       id: myid,
-      body: entry,
+      body: saveentry,
       refresh: true
     }, callback);
   });
@@ -597,8 +598,13 @@ mongolastic.prototype.sync = function sync(model, modelname, callback) {
             '_id': doc._id.toString()
           }
         };
+        var savedoc = doc;
+        if(doc.toObject) {
+          savedoc = doc.toObject();
+        }
+        delete savedoc._id;
         bulk.push(action);
-        bulk.push(doc);
+        bulk.push(savedoc);
       } else {
         if(err) {
           errcount = errcount +1;
