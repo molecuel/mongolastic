@@ -221,7 +221,7 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
   if(options.modelname) {
     var elastic = getInstance();
 
-    schema.pre('save', function(next, done) {
+    var pluginHandler = function(next, done) {
       var self = this;
       elastic.populate(self, schema, options, function(err) {
         if(!err) {
@@ -237,7 +237,10 @@ mongolastic.prototype.plugin = function plugin(schema, options) {
           done(new Error('Could not save in Elasticsearch: '+err));
         }
       });
-    });
+    };
+
+    schema.pre('save', pluginHandler);
+    schema.pre('findOneAndUpdate', pluginHandler);
 
     schema.post('remove', function() {
       elastic.delete(options.modelname, this.id, function(err) {
