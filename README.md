@@ -11,7 +11,7 @@ mongolastic
 
 Mongolastic is a mongoose middleware which provides automatic index functionality for mongoose objects. Unlike other libs like elmongo this module is based on the official elasticsearch javascript api and provides full access to the api via mongolastic.connection.
 
-It should be registered as plugin and a modelname should be provided.
+It should be registered as plugin and a modelName should be provided.
 
 ```js
 var mongolastic = require('mongolastic');
@@ -36,7 +36,7 @@ mongolastic.connect('mongolastic', {
 var CostumeSchema = mongoose.Schema({
   name: String,
 });
-CostumeSchema.plugin(mongolastic.plugin, {modelname: 'costume'});
+CostumeSchema.plugin(mongolastic.plugin, {modelName: 'costume'});
 var costume = mongoose.model('costume', CostumeSchema);
 // add additional functions to the model and create the index with the mapping
 mongolastic.registerModel(costume, function(err, res) {
@@ -52,11 +52,29 @@ var CatSchema = mongoose.Schema({
   costume: {type: mongoose.Schema.ObjectId, ref: 'costume', elastic: {popfields: 'name'}}
 });
 
-// modelname is important to provide the correct index for the model
-CatSchema.plugin(mongolastic.plugin, {modelname: 'cat'});
+// modelName is important to provide the correct index for the model
+CatSchema.plugin(mongolastic.plugin, {modelName: 'cat'});
 var cat = mongoose.model('cat', CatSchema);
-// add additional functions to the model and create the index with the mapping
-mongolastic.registerModel(cat, function(err, res) {
+
+// Add additional functions to the model and create the index with the mapping
+// Optionally, elasticsearch index settings can be provided
+
+var options = {
+    'settings': {
+      'index': {
+        'analysis': {
+          'filter': {
+            'english_stop': {
+              'type': 'stop',
+              'stopwords': '_english_'
+            }
+          }
+        }
+      }
+    }
+};
+      
+mongolastic.registerModel(cat, options, function(err, res) {
   console.log('model registered and mapping created');
 });
 ```
