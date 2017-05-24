@@ -59,8 +59,7 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
 
   // check the connection with a ping to the cluster and reply the connection
   this.connection.ping({
-    requestTimeout: 1000,
-    hello: 'elasticsearch!'
+    requestTimeout: 1000
   },function(err) {
     if(err) {
       callback(err);
