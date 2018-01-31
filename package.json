@@ -12,7 +12,7 @@
   },
   "version": "0.9.7",
   "dependencies": {
-    "elasticsearch": "^13.0.1",
+    "elasticsearch": "^14.1.0",
     "async": ">=0.0.1",
     "underscore": ">=0.0.1"
   },
