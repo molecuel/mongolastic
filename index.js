@@ -57,16 +57,18 @@ mongolastic.prototype.connect = function(prefix, options, callback) {
     this.indices = new indices(this);
   }
 
+  // ignore for use in azure
   // check the connection with a ping to the cluster and reply the connection
-  this.connection.ping({
-    requestTimeout: 1000
-  },function(err) {
-    if(err) {
-      callback(err);
-    } else {
-      callback(null, self.connection);
-    }
-  });
+  // this.connection.ping({
+  //   requestTimeout: 1000
+  // },function(err) {
+  //   if(err) {
+  //     callback(err);
+  //   } else {
+      
+  //   }
+  // });
+  callback(null, self.connection);
 };
 
 /**
