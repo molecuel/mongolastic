@@ -13,7 +13,7 @@
   "version": "0.9.8",
   "dependencies": {
     "elasticsearch": "^13.0.1",
-    "async": ">=0.0.1",
+    "async": ">=3.0.1",
     "underscore": ">=0.0.1"
   },
   "devDependencies": {
